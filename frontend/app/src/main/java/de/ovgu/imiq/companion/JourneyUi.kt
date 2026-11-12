@@ -166,7 +166,7 @@ import org.json.JSONObject
   results=emptyList();failure=null;searched=false;loading=false
   if(query.trim().length<3||query==selected?.label)return@LaunchedEffect
   delay(650);loading=true
-  try {results=model.findPlaces(query,model.origin);searched=true}catch(e:CancellationException){throw e}catch(e:Exception){failure=model.text("Address search is unavailable. Check the backend connection.","Ortssuche nicht erreichbar. Backend-Verbindung prüfen.")}finally{loading=false}
+  try {results=model.findPlaces(query,model.origin);searched=true}catch(e:CancellationException){throw e}catch(e:Exception){failure=model.text("Address search is temporarily unavailable. Try again or choose a point on the map.","Die Ortssuche ist vorübergehend nicht verfügbar. Erneut versuchen oder einen Kartenpunkt wählen.")}finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
   OutlinedTextField(query,{onFocused();query=it;onChoose(null)},Modifier.fillMaxWidth().focusRequester(fieldFocus).onFocusChanged {if(it.isFocused)onFocused()},label={Text(label)},singleLine=true,enabled=!model.busy,trailingIcon={Row(verticalAlignment=Alignment.CenterVertically){

@@ -226,9 +226,9 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
   geocodingCache[key]?.takeIf {System.currentTimeMillis()-it.first<300000}?.let {return it.second}
   geocodingGate.withLock {delay((nextGeocodingStart-System.currentTimeMillis()).coerceAtLeast(0));nextGeocodingStart=System.currentTimeMillis()+1000}
   val suffix="?q=${URLEncoder.encode(query.trim(),"UTF-8")}&lang=$language&lat=${bias?.lat?:52.13}&lon=${bias?.lon?:11.62}"
-  val data=api.call("/api/companion/geocoding$suffix")
-  val requested=Regex("\\s(\\d{1,4}[a-z]?(?:[-/]\\d{1,4}[a-z]?)?)(?=\\s|$)",RegexOption.IGNORE_CASE).findAll(query.substringBefore(',')).lastOrNull()?.groupValues?.get(1)?.lowercase()
-  val places=data.objects("features").mapNotNull(::placeFromFeature).filter {requested==null||it.house.lowercase()==requested}
+  val places=addressSearch(query,
+   backend={api.call("/api/companion/geocoding$suffix",timeout=4000).objects("features").mapNotNull(::placeFromFeature)},
+   device={deviceAddressSearch(getApplication(),query.trim(),language,bias)})
   geocodingCache[key]=System.currentTimeMillis() to places
   if(geocodingCache.size>50)geocodingCache.remove(geocodingCache.keys.first())
   return places

@@ -78,8 +78,9 @@ def settings(*, load_file=True):
         java = str(candidate) if candidate and candidate.is_file() else (shutil.which('java') or '')
     for name, default in (('COMPANION_ROUTING_BASE_URL',''), ('COMPANION_GRAPHHOPPER_BASE_URL',''), ('COMPANION_OTP_BASE_URL','')):
         provider_url(name, default)
+    provider_url('COMPANION_GEOCODING_BASE_URL', 'https://photon.komoot.io')
     for name,default in (('COMPANION_GEOMETRY_TIMEOUT_SECONDS',15),('COMPANION_OTP_TIMEOUT_SECONDS',20),
-                         ('COMPANION_WEATHER_TIMEOUT_SECONDS',6),('COMPANION_GEOCODING_TIMEOUT_SECONDS',12)):
+                         ('COMPANION_WEATHER_TIMEOUT_SECONDS',6),('COMPANION_GEOCODING_TIMEOUT_SECONDS',2)):
         positive_number(name,default)
     positive_integer('COMPANION_MAX_BATCH_REQUESTS',16)
     ports = [positive_integer(name, default) for name, default in
