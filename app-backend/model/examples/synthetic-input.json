@@ -1,0 +1,55 @@
+{
+  "schema_version": "hotco_ct_input_5goals_1.0",
+  "agent_id": "synthetic-model-documentation",
+  "responses": {
+    "needs": {
+      "pro_env": 6,
+      "physical": 5,
+      "cost": 4,
+      "speed": 3,
+      "comfort": 6
+    },
+    "beliefs": {
+      "car": {
+        "pro_env": 2,
+        "physical": 1,
+        "cost": 2,
+        "speed": 7,
+        "comfort": 6
+      },
+      "bike": {
+        "pro_env": 7,
+        "physical": 7,
+        "cost": 6,
+        "speed": 4,
+        "comfort": 3
+      },
+      "pt": {
+        "pro_env": 6,
+        "physical": 3,
+        "cost": 5,
+        "speed": 4,
+        "comfort": 5
+      },
+      "walk": {
+        "pro_env": 7,
+        "physical": 7,
+        "cost": 7,
+        "speed": 1,
+        "comfort": 4
+      }
+    },
+    "valences": {
+      "car": -1,
+      "bike": 2,
+      "pt": 1,
+      "walk": 1
+    },
+    "availability": {
+      "car": true,
+      "bike": true,
+      "pt": true,
+      "walk": true
+    }
+  }
+}

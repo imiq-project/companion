@@ -1,0 +1,207 @@
+{
+  "scope": "Synthetic documentation only; no participant data, providers, GPS or learning.",
+  "model_version": "hotco_signed_grossberg_5goals_v1",
+  "parameters": {
+    "tau": 0.8,
+    "decay": 0.05,
+    "belief_strength": 1.0,
+    "modal_coupling": 0.25,
+    "affective_coupling": 0.5,
+    "dt": 0.1,
+    "horizon": 400.0,
+    "max_extension": 1600.0,
+    "rtol": 1e-09,
+    "atol": 1e-11,
+    "max_step": 0.1,
+    "residual_tolerance": 1e-08,
+    "extension_residual_tolerance": 1e-10,
+    "root_tolerance": 1e-10,
+    "root_distance_tolerance": 0.001,
+    "settling_dwell": 1.0,
+    "practical_margin_threshold": 0.01
+  },
+  "source_sha256": {
+    "app-backend/model/hotco_signed_v1.py": "3ea6005add18be50d21ad321280c956022a5170e9eb89921fc48b4486a87b8e2",
+    "app-backend/model/input_mapping_v4_3.py": "8b934838afa9b92786436b0ebe8f4a98d7ce026e6a22d46444b7c98a0c5a35c5",
+    "app-backend/model/action_readout.py": "64f862fd878494aed547046b02288d7e07425f50025ca6714188ebaa7ddae455",
+    "contracts/hotco-signed-model-v1.json": "085fad6ae7c3e9d92f8cd2083df92339afa97f548584f721fd618f1ebe459924",
+    "app-backend/model/examples/generate_figures.py": "620d2050628fba029e9973b8f55181a8ace2ccd82ac72631d125916f52fcfa11"
+  },
+  "initial_state": [
+    0.8333333333333334,
+    0.6666666666666666,
+    0.5,
+    0.3333333333333333,
+    0.8333333333333334,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -0.3333333333333333,
+    0.6666666666666666,
+    0.3333333333333333,
+    0.3333333333333333
+  ],
+  "terminal_state": [
+    0.9849482520297712,
+    0.9814611693381259,
+    0.9813060722462814,
+    -0.9753442042987261,
+    -0.9305601762842911,
+    -0.9886371471942276,
+    0.9872467396530701,
+    0.9543773013311946,
+    0.9892836145525601,
+    -0.9081420285374852,
+    0.9080245574873742,
+    0.9051572905887231,
+    0.9081965443489413
+  ],
+  "readout_all_available": {
+    "readout_version": "signed-actions-v1",
+    "terminal_leaders": [
+      "walk"
+    ],
+    "terminal_tendency": "walk",
+    "ranking_groups": [
+      [
+        "walk"
+      ],
+      [
+        "bike"
+      ],
+      [
+        "pt"
+      ],
+      [
+        "car"
+      ]
+    ],
+    "tie_tolerance": 1e-06,
+    "best_available_activation": 0.9892836145525601,
+    "available_modes": [
+      "car",
+      "bike",
+      "pt",
+      "walk"
+    ],
+    "interpretation": "signed model evaluations; ties retained; no choice probabilities"
+  },
+  "excluded_mode_for_demonstration": "walk",
+  "readout_with_exclusion": {
+    "readout_version": "signed-actions-v1",
+    "terminal_leaders": [
+      "bike"
+    ],
+    "terminal_tendency": "bike",
+    "ranking_groups": [
+      [
+        "bike"
+      ],
+      [
+        "pt"
+      ],
+      [
+        "car"
+      ]
+    ],
+    "tie_tolerance": 1e-06,
+    "best_available_activation": 0.9872467396530701,
+    "available_modes": [
+      "car",
+      "bike",
+      "pt"
+    ],
+    "interpretation": "signed model evaluations; ties retained; no choice probabilities"
+  },
+  "availability_trajectories_exactly_equal": true,
+  "numerical_audit": {
+    "integrated_residual": 5.551115123125783e-16,
+    "root_solver_success": true,
+    "root_residual": 1.3877787807814457e-16,
+    "endpoint_root_distance": 8.881784197001252e-16,
+    "root_bounded": true,
+    "nonsmooth_net_coordinate": false,
+    "max_real_eigenvalue": -0.6566078320281687,
+    "verified_stable_equilibrium": true,
+    "polished_root": [
+      0.9849482520297713,
+      0.9814611693381258,
+      0.9813060722462816,
+      -0.9753442042987264,
+      -0.9305601762842904,
+      -0.9886371471942276,
+      0.9872467396530702,
+      0.954377301331195,
+      0.9892836145525601,
+      -0.9081420285374859,
+      0.908024557487375,
+      0.905157290588724,
+      0.908196544348942
+    ],
+    "root_replaces_integrated_endpoint": false,
+    "solver": "DOP853",
+    "rtol": 1e-09,
+    "atol": 1e-11,
+    "max_step": 0.1,
+    "primary_horizon": 400.0,
+    "actual_horizon": 400.0,
+    "extended": false,
+    "primary_audit": {
+      "integrated_residual": 5.551115123125783e-16,
+      "root_solver_success": true,
+      "root_residual": 1.3877787807814457e-16,
+      "endpoint_root_distance": 8.881784197001252e-16,
+      "root_bounded": true,
+      "nonsmooth_net_coordinate": false,
+      "max_real_eigenvalue": -0.6566078320281687,
+      "verified_stable_equilibrium": true,
+      "polished_root": [
+        0.9849482520297713,
+        0.9814611693381258,
+        0.9813060722462816,
+        -0.9753442042987264,
+        -0.9305601762842904,
+        -0.9886371471942276,
+        0.9872467396530702,
+        0.954377301331195,
+        0.9892836145525601,
+        -0.9081420285374859,
+        0.908024557487375,
+        0.905157290588724,
+        0.908196544348942
+      ],
+      "root_replaces_integrated_endpoint": false
+    },
+    "nfev": 60029,
+    "bound_violation": 0.0,
+    "extension_residual_target_met": null,
+    "state_clipping_applied": false
+  },
+  "terminal_net_inputs": {
+    "cognitive": [
+      -3.888015040677081,
+      2.930800194960182,
+      0.3463937435611356,
+      3.9230596979129047
+    ],
+    "modal": [
+      -0.008217359580468875,
+      0.48575361213135554,
+      0.24697330175285062,
+      0.23859432533279865
+    ],
+    "affective": [
+      -0.4540710142687426,
+      0.4540122787436871,
+      0.45257864529436154,
+      0.45409827217447063
+    ],
+    "total": [
+      -4.350303414526293,
+      3.8705660858352244,
+      1.0459456906083477,
+      4.615752295420174
+    ]
+  }
+}
