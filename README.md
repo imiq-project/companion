@@ -26,7 +26,7 @@ app does not automatically upload GPS when a journey ends.
 
 ## Contents
 
-- [Product overview](#product-overview)
+- [Service overview](#service-overview)
 - [System architecture](#system-architecture)
 - [Android frontend](#android-frontend)
 - [Python backend](#python-backend)
@@ -41,7 +41,7 @@ app does not automatically upload GPS when a journey ends.
 
 ---
 
-## Product overview
+## Service overview
 
 Companion supports a complete local journey workflow: establish personal
 priorities, compare travel alternatives, choose a route, record or review a
