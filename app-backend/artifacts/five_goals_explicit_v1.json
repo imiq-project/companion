@@ -1,0 +1,26 @@
+{
+  "schema_version": "cognitive_passport_explicit_artifact_v1",
+  "model_version": "five-goals-explicit-v1",
+  "canonical_contract": {
+    "modes": [
+      "car",
+      "bike",
+      "pt",
+      "walk"
+    ],
+    "needs": [
+      "pro_env",
+      "physical",
+      "cost",
+      "speed",
+      "comfort"
+    ],
+    "belief_matrix_shape": [
+      4,
+      5
+    ]
+  },
+  "question_policy": "all_twenty_declared_beliefs",
+  "estimated_cells": 0,
+  "learning_activation": false
+}

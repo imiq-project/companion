@@ -1,0 +1,430 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:companion:longitudinal-backend-experiment-v1",
+  "title": "Explicit backend experiment requests, permissions, receipts and results",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/search"
+    },
+    {
+      "$ref": "#/$defs/permission"
+    },
+    {
+      "$ref": "#/$defs/receipt"
+    },
+    {
+      "$ref": "#/$defs/result"
+    }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "scope": {
+      "enum": [
+        "observed",
+        "synthetic_lab_only"
+      ]
+    },
+    "mode": {
+      "enum": [
+        "walk",
+        "bike",
+        "pt",
+        "car"
+      ]
+    },
+    "target": {
+      "enum": [
+        "comfort",
+        "affect"
+      ]
+    },
+    "search": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "root",
+        "deliberation",
+        "bindings"
+      ],
+      "properties": {
+        "schema_version": {
+          "enum": [
+            "longitudinal-backend-search-v1",
+            "d-day-backend-search-v1"
+          ]
+        },
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deliberation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "search_id",
+            "timestamp",
+            "candidate_routes"
+          ],
+          "properties": {
+            "search_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "timestamp": {
+              "type": "string"
+            },
+            "candidate_routes": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "items": {
+                "type": "object"
+              }
+            },
+            "contextual_observations": {
+              "type": "object"
+            },
+            "contextual_query": {
+              "type": "object"
+            },
+            "record_trajectories": {
+              "type": "boolean"
+            },
+            "context_policy": {
+              "const": "observations_only"
+            },
+            "journey_availability": {
+              "type": "object"
+            }
+          }
+        },
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "route_id",
+              "prediction_id",
+              "mode",
+              "routing_rank"
+            ],
+            "properties": {
+              "route_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "prediction_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "mode": {
+                "$ref": "#/$defs/mode"
+              },
+              "routing_rank": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "root",
+        "target",
+        "mode",
+        "model",
+        "domain",
+        "issued_at",
+        "valid_until",
+        "evidence_scope",
+        "enabled",
+        "evidence_digest",
+        "policy_digest",
+        "qualification",
+        "empirically_validated",
+        "production_authorized",
+        "permission_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "enum": [
+            "longitudinal-method-permission-v1",
+            "d-day-method-permission-v1"
+          ]
+        },
+        "root": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/target"
+        },
+        "mode": {
+          "$ref": "#/$defs/mode"
+        },
+        "model": {
+          "enum": [
+            "basic",
+            "contextual"
+          ]
+        },
+        "domain": {
+          "type": "object",
+          "required": [
+            "observed_features",
+            "bounds"
+          ],
+          "properties": {
+            "observed_features": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "bounds": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        },
+        "issued_at": {
+          "type": "string"
+        },
+        "valid_until": {
+          "type": "string"
+        },
+        "evidence_scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "evidence_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "policy_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "permission_id": {
+          "$ref": "#/$defs/digest"
+        },
+        "qualification": {
+          "const": "experimental_protocol_only"
+        },
+        "empirically_validated": {
+          "const": false
+        },
+        "production_authorized": {
+          "const": false
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "target",
+        "mode",
+        "as_of",
+        "source_digest",
+        "source_passport_id",
+        "context_digest",
+        "evidence_scope",
+        "policy_digest",
+        "used_source",
+        "original_value",
+        "effective_value",
+        "model_assessments",
+        "robustness",
+        "experimental_input_admitted",
+        "effective_category_probabilities",
+        "original_passport_modified",
+        "state_carryover_applied",
+        "empirically_validated",
+        "production_authorized",
+        "receipt_digest"
+      ],
+      "properties": {
+        "schema_version": {
+          "enum": [
+            "longitudinal-experimental-admission-v1",
+            "d-day-experimental-admission-v1"
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/target"
+        },
+        "mode": {
+          "$ref": "#/$defs/mode"
+        },
+        "as_of": {
+          "type": "string"
+        },
+        "source_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "source_passport_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "context_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "evidence_scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "policy_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "used_source": {
+          "enum": [
+            "original",
+            "basic",
+            "contextual"
+          ]
+        },
+        "original_value": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "effective_value": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "model_assessments": {
+          "type": "object"
+        },
+        "robustness": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "experimental_input_admitted": {
+          "type": "boolean"
+        },
+        "effective_category_probabilities": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "original_passport_modified": {
+          "const": false
+        },
+        "state_carryover_applied": {
+          "const": false
+        },
+        "empirically_validated": {
+          "const": false
+        },
+        "production_authorized": {
+          "const": false
+        },
+        "receipt_digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "search_id",
+        "root",
+        "as_of",
+        "request",
+        "bindings",
+        "deliberation",
+        "evidence_scope",
+        "server_received_at",
+        "server_finished_at",
+        "clock_kind",
+        "forecast_record",
+        "original_passport_modified",
+        "production_authorized",
+        "result_digest"
+      ],
+      "properties": {
+        "schema_version": {
+          "enum": [
+            "longitudinal-backend-search-result-v1",
+            "d-day-backend-search-result-v1"
+          ]
+        },
+        "search_id": {
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "as_of": {
+          "type": "string"
+        },
+        "request": {
+          "$ref": "#/$defs/search"
+        },
+        "bindings": {
+          "type": "array"
+        },
+        "deliberation": {
+          "type": "object"
+        },
+        "evidence_scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "server_received_at": {
+          "type": "string"
+        },
+        "server_finished_at": {
+          "type": "string"
+        },
+        "clock_kind": {
+          "enum": [
+            "synthetic_logical_clock",
+            "server_wall_clock"
+          ]
+        },
+        "forecast_record": {
+          "type": "object"
+        },
+        "original_passport_modified": {
+          "const": false
+        },
+        "production_authorized": {
+          "const": false
+        },
+        "result_digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    }
+  }
+}

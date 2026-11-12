@@ -1,0 +1,11 @@
+[Unit]
+Description=Check public GTFS changes every ten minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=10min
+RandomizedDelaySec=30s
+Unit=companion-transit-sync.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+flask>=3.0,<4
+numpy>=2.0,<3
+gunicorn>=22,<24
+tzdata>=2025.1
+openai>=1.0,<3
+groq>=1.7,<2
+python-dotenv>=1.0,<2
+jsonschema>=4.25,<5
+
+# Operational signed HOTCO DOP853/root diagnostics and ordinal Bayesian laboratory
+scipy>=1.15,<2

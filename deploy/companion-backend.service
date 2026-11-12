@@ -1,0 +1,23 @@
+[Unit]
+Description=Companion backend API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=companion
+Group=companion
+WorkingDirectory=/opt/companion/app-backend
+EnvironmentFile=/etc/companion/backend.env
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=1
+ExecStart=/opt/companion/.venv/bin/gunicorn --config /opt/companion/deploy/gunicorn.conf.py application:create_app()
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=250
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+{
+  "schema_version": "companion-identity-v1",
+  "android_application_id": "de.ovgu.imiq.companion",
+  "api_prefix": "/api/companion",
+  "environment_prefix": "COMPANION_",
+  "application_version": "0.4.137",
+  "version_code": 148,
+  "model_policy": "Five goals and thirteen states; no numerical or learning-policy changes.",
+  "current_contract_sha256": {
+    "contracts/climate-factors-v1.json": "eefbbf00676c6c89b09e69b5df3bdca56be35d5915bcbb0e93a6f394d6bfb40f",
+    "contracts/hotco-signed-model-v1.json": "085fad6ae7c3e9d92f8cd2083df92339afa97f548584f721fd618f1ebe459924",
+    "contracts/journey-v1.schema.json": "5b7a6d2aea5f7d69f01217374471fd87cc39874cb583aa8a3f98536b3b7dd268",
+    "contracts/longitudinal-admission-shadow-v1.schema.json": "9113c1b5e3a909cf19d57473626c0febd7c88958ef51f58720a2ede7dedfaeb0",
+    "contracts/longitudinal-backend-experiment-v1.schema.json": "fc958896abdf14d07f6ac8d60e56a9770881a3d7afc295d8e49ac8a46ae71874",
+    "contracts/longitudinal-evidence-v1.schema.json": "5dc15484ab05a9a75cae21a12345013a5d84a84eb67acee8d6d05b5ff4d66881",
+    "contracts/longitudinal-names-v1.json": "6c35aae7a6eae38ab657993986128b4b4509492834ac0f0f750ae12578143d87",
+    "contracts/longitudinal-prospective-v2.schema.json": "0a0f44f4eb5a1fa8d733e8c8aef909b127dd9a22570095f81c5e279531151b27",
+    "contracts/magdeburg-mobility.json": "db39b28cfb744899984cf6dbb762a20562fe9abd0461fbaae85d52f5ad84beae",
+    "contracts/magdeburg-tram-lines.json": "6a76ef2c3637fb8fbe8aa2d8314fa69416c268b0a8642c0bdb21547cfd0c120b",
+    "contracts/vehicle-catalogue-v1.json.gz": "6cdb050d5806ea9696b6b495aa0f2b52cadbd73a407100c208c0e1c97c8d9b95",
+    "contracts/vehicle-names-gb-v1.json.gz": "5e473413a38f9eb427d7a28386ce9309a9ca8981f30ab87eeaff878ae092646d"
+  }
+}

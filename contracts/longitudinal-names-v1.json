@@ -1,0 +1,71 @@
+{
+  "schema_version": "longitudinal-namespace-v1",
+  "current_url_prefix": "/api/companion/longitudinal",
+  "legacy_url_prefix": "/api/companion/d-day",
+  "identifier_aliases": {
+    "d-day-admission-shadow-v1": "longitudinal-admission-shadow-v1",
+    "d-day-backend-experiment-v1": "longitudinal-backend-experiment-v1",
+    "d-day-backend-search-result-v1": "longitudinal-backend-search-result-v1",
+    "d-day-backend-search-v1": "longitudinal-backend-search-v1",
+    "d-day-context-audit-v1": "longitudinal-context-audit-v1",
+    "d-day-context-audit-v2": "longitudinal-context-audit-v2",
+    "d-day-context-sample-v1": "longitudinal-context-sample-v1",
+    "d-day-cumulative-ordinal-intensity-v2": "longitudinal-cumulative-ordinal-intensity-v2",
+    "d-day-evaluation-eligibility-v1": "longitudinal-evaluation-eligibility-v1",
+    "d-day-experimental-admission-v1": "longitudinal-experimental-admission-v1",
+    "d-day-external-evaluation-exclusions-v1": "longitudinal-external-evaluation-exclusions-v1",
+    "d-day-learned-passport-request-v1": "longitudinal-learned-passport-request-v1",
+    "d-day-learned-passport-result-v1": "longitudinal-learned-passport-result-v1",
+    "d-day-learned-passport-v1": "longitudinal-learned-passport-v1",
+    "d-day-longitudinal-v1": "longitudinal-evidence-v1",
+    "d-day-method-permission-v1": "longitudinal-method-permission-v1",
+    "d-day-prospective-evaluation-v2": "longitudinal-prospective-evaluation-v2",
+    "d-day-prospective-forecast-v2": "longitudinal-prospective-forecast-v2",
+    "d-day-prospective-request-v2": "longitudinal-prospective-request-v2",
+    "d-day-prospective-source-v2": "longitudinal-prospective-source-v2",
+    "d-day-prospective-v2": "longitudinal-prospective-v2",
+    "d-day-trip-context-v1": "longitudinal-trip-context-v1",
+    "d-day-typed-utf8-binary64-v1": "longitudinal-typed-utf8-binary64-v1",
+    "d-day-weather-intensity-v2": "longitudinal-weather-intensity-v2",
+    "d-day-weather-use-v2": "longitudinal-weather-use-v2"
+  },
+  "current_contract_sha256": {
+    "contracts/longitudinal-admission-shadow-v1.schema.json": "9113c1b5e3a909cf19d57473626c0febd7c88958ef51f58720a2ede7dedfaeb0",
+    "contracts/longitudinal-backend-experiment-v1.schema.json": "fc958896abdf14d07f6ac8d60e56a9770881a3d7afc295d8e49ac8a46ae71874",
+    "contracts/longitudinal-evidence-v1.schema.json": "5dc15484ab05a9a75cae21a12345013a5d84a84eb67acee8d6d05b5ff4d66881",
+    "contracts/longitudinal-prospective-v2.schema.json": "0a0f44f4eb5a1fa8d733e8c8aef909b127dd9a22570095f81c5e279531151b27",
+    "contracts/journey-v1.schema.json": "5b7a6d2aea5f7d69f01217374471fd87cc39874cb583aa8a3f98536b3b7dd268"
+  },
+  "renamed_files": {
+    "app-backend/d_day_evidence.py": "app-backend/longitudinal_evidence.py",
+    "app-backend/tests/test_d_day.py": "app-backend/tests/test_longitudinal.py",
+    "frontend/test-fixtures/d_day_backup.json": "frontend/test-fixtures/longitudinal_backup.json",
+    "frontend/test-fixtures/d_day_prechoice_cases.json": "frontend/test-fixtures/longitudinal_prechoice_cases.json",
+    "frontend/test-fixtures/d_day_admission_cases.json": "frontend/test-fixtures/longitudinal_admission_cases.json"
+  },
+  "preserved_storage_fields": [
+    "d_day_forecast",
+    "d_day_evaluations",
+    "d_day_prediction_contexts",
+    "d_day_prediction_context_failure"
+  ],
+  "digest_algorithm": "Typed UTF-8/binary64 v1; original domain bytes preserved for both identifier spellings.",
+  "digest_cases": [
+    {
+      "value": {
+        "schema_version": "d-day-evaluation-eligibility-v1",
+        "subject_id": "d-day-subject-v1",
+        "exclusions": null
+      },
+      "expected": "86ec5fafb0bcb2b6fc57ce469759c6545ad146ac5d8e7b0c26922302a2730cbf"
+    },
+    {
+      "value": {
+        "schema_version": "longitudinal-evaluation-eligibility-v1",
+        "subject_id": "d-day-subject-v1",
+        "exclusions": null
+      },
+      "expected": "569420e49b7ef058b6c34f64e212d6dd326a7d6027c9cc1eb434c327fdd9b32a"
+    }
+  ]
+}

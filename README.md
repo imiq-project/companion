@@ -1,674 +1,503 @@
-# IMIQ Mobility App — Adaptive HOTCO-CT UC5
+# Companion
 
-Android client for the IMIQ mobility assistant in Magdeburg. The current UC5 architecture combines an **Adaptive Cognitive Passport**, **HOTCO-CT v4.3**, an external route-ranking service, route geometry, live contextual evidence, deterministic XAI, and optional evidence-bounded Digital Companion narration.
+Companion is a native Android mobility companion developed in the IMIQ project.
+It helps people explore travel options in Magdeburg, consider their own priorities,
+follow a journey, and reflect on their experience. This repository contains the
+Android application, its Python backend, shared versioned contracts, and the
+tools needed to initialize and operate local public transport services.
 
-This README describes the **current implementation in the adaptive HOTCO-CT integration branch**, not the older 44-question onboarding pipeline.
+Current application version: **0.4.137**, Android version code **148**.
+The minimum supported Android version is **Android 8.0 (API 26)**; the current
+compile and target SDK are API 36.
 
-> **Scientific boundary:** HOTCO-CT models a person's mobility deliberation. It does **not** generate routes and it does **not** own the routing rank. Candidate generation and ordering remain the responsibility of the external routing service.
+The Android application ID and namespace are **`de.ovgu.imiq.companion`**.
+Current API routes use **`/api/companion`**, configuration uses the
+**`COMPANION_`** prefix, the CLI is **`companion.py`**, and Linux service names
+start with **`companion-`**. This is a separate Android application identity;
+installation does not replace an application registered with a different ID.
+No automatic migration of existing device or server data is performed.
 
----
+## What the app does
 
-## Current implementation status
+- Personalizes travel comparisons around five goals: environmental impact,
+  physical activity, cost, speed and comfort.
+- Shows route alternatives, maps, public transport stops and departures, and
+  contextual information such as weather and estimated climate impact.
+- Supports user-started journey tracking with Android location permissions,
+  foreground service notifications and local journey history.
+- Supports journey review and experience reporting, including journeys without
+  GPS capture.
+- Offers an explicit **Data and validation → Validate with backend** action to
+  send a search and journey evidence to the backend for validation and storage.
+- Uses a visual companion and goal displays to present travel-related feedback.
 
-| Component | Current state |
-|---|---|
-| Adaptive Cognitive Passport onboarding | Implemented |
-| 11 mobility needs + 4 action valences | Implemented |
-| Explicit availability for car/bike/PT/walk | Implemented |
-| Four fixed TRAIN-derived belief calibration questions | Implemented |
-| Estimation of the remaining belief cells with explicit provenance | Implemented |
-| HOTCO-CT v4.3 initial bootstrap | Implemented |
-| Five environmental tolerance ratings | Implemented |
-| Cognitive Passport persistence on device | Implemented |
-| Longitudinal XAI-driven micro-questions | Implemented |
-| Explicit-confirmation profile revisions | Implemented |
-| External route ranking | Implemented in UI, but adaptive-passport compatibility still needs one adapter fix |
-| GraphHopper geometry reconstruction | Implemented after a routing result exists |
-| Route-conditioned contextual HOTCO | Implemented in backend, but adaptive-passport reconstruction still needs compatibility work |
-| Deterministic contextual XAI | Implemented |
-| Optional server-side Digital Companion narration | Implemented |
-| Production/local Android flavors | Implemented |
-| Production-debug CI build and unit tests | Implemented |
+The operational model has **five goals and thirteen states**. Equations, gains,
+factors and evidence formats are versioned. Experimental learning components are
+present for compatibility and research, but operational learning stays disabled.
+Historical eleven-goal material is not a source of current profile inputs.
 
-### Important current integration note
+## Architecture and repository layout
 
-The adaptive onboarding and HOTCO bootstrap are functional, but the current frontend `PassportAdapter.toEnginePassport()` still contains the legacy strict guard that requires **44 observed belief ratings**, `imputation_used == false`, and no population-trained estimator. An Adaptive Cognitive Passport truthfully contains initially **4 observed + 40 estimated** belief cells, so this guard currently prevents the adaptive passport from reaching route ranking.
+### Runtime components and data boundaries
 
-There is a second downstream compatibility point in contextual deliberation: the current backend route-context path reconstructs the strict questionnaire from normalized Cognitive Passport values. Estimator-derived adaptive belief values are not guaranteed to map exactly back to the original integer 1–7 response scale, so contextual deliberation must use an adaptive-aware reconstruction path before the adaptive route-context pipeline is considered end-to-end complete.
+The Android app and the backend are separate programs. OTP and the realtime
+proxy are additional server-side processes. The shared contracts are packaged
+as Android assets and read directly by Python; they are not another service.
 
-These are integration issues, not HOTCO solver changes. The intended ownership boundaries described below remain unchanged.
-
----
-
-# 1. Architecture at a glance
-
-```text
-                         ┌───────────────────────────────┐
-                         │          Android app          │
-                         └──────────────┬────────────────┘
-                                        │
-                          production: access-code login
-                          local*: direct profile setup
-                                        │
-                                        ▼
-                    ┌──────────────────────────────────┐
-                    │ Adaptive Cognitive Passport setup│
-                    │                                  │
-                    │ 11 needs                         │
-                    │ 4 availability declarations      │
-                    │ 4 mode valences                  │
-                    │ 4 fixed belief questions         │
-                    │ 5 context-tolerance ratings      │
-                    └────────────────┬─────────────────┘
-                                     │
-                                     ▼
-                  /adaptive-passport/start + complete
-                                     │
-                                     ▼
-                  statistical completion of 4×11 beliefs
-                    observed and estimated kept separate
-                                     │
-                                     ▼
-                  /adaptive-passport/bootstrap
-                                     │
-                                     ▼
-                         HOTCO-CT v4.3 baseline
-                                     │
-                                     ▼
-                         Cognitive Passport v2
-                    + adaptive provenance + lineage
-                    + deterministic XAI diagnostics
-                                     │
-                                     ▼
-                           persisted on device
-                                     │
-                    ┌────────────────┴───────────────┐
-                    │                                │
-                    ▼                                ▼
-           profile refinement                 trip planning
-           micro-question                          │
-                    │                              ▼
-                    │                     origin + destination
-                    │                              │
-                    │                              ▼
-                    │                    external routing engine
-                    │                     owns candidate ranking
-                    │                              │
-                    │                              ▼
-                    │                 GraphHopper geometry reconstruction
-                    │                   car / bike / walk when available
-                    │                              │
-                    │                              ▼
-                    │                    DYCONET contextual layer
-                    │                 baseline + per-route HOTCO run
-                    │                              │
-                    │                              ▼
-                    │                    deterministic contextual XAI
-                    │                              │
-                    │                              ▼
-                    │                  optional Digital Companion voice
-                    │                    from minimized validated evidence
-                    │                              │
-                    └──────────────────────────────┤
-                                                   ▼
-                                      route cards / map / directions
+```mermaid
+flowchart TB
+    subgraph phone[Android device]
+        UI[Compose screens and CompanionModel]
+        Repository[TripRepository and local Store]
+        GPS[TrackingService and TrackingEngine]
+        DeviceDB[(On-device SQLite)]
+        UI --> Repository
+        UI --> GPS
+        GPS --> Repository
+        Repository --> DeviceDB
+    end
+    subgraph host[Machine running the backend]
+        API[Flask API /api/companion]
+        Coordination[Application services]
+        Model[HOTCO: five goals, thirteen states]
+        Routing[Routing and context adapters]
+        Archive[Journey validation and archive]
+        ServerDB[(Backend-local SQLite)]
+        OTP[OpenTripPlanner 2.7.0]
+        RT[GTFS-RT identity proxy]
+        Graph[Public GTFS and OSM graph]
+        API --> Coordination
+        Coordination --> Model
+        Coordination --> Routing
+        API --> Archive
+        Archive --> ServerDB
+        Routing --> OTP
+        Graph --> OTP
+        RT --> OTP
+        RT --> Routing
+    end
+    Repository -->|Search requests and responses| API
+    Repository -->|Explicit manual validation and upload| API
+    Providers[External routing, geometry, context, weather, geocoding and map services]
+    Routing --> Providers
+    UI -->|Map tiles and glyphs| Providers
+    Feed[Public GTFS-RT source] --> RT
+    Contracts[Shared versioned contracts] -.-> Repository
+    Contracts -.-> API
 ```
 
-`localEmulator` and `localUsb` make the Adaptive Passport → HOTCO core local. Routing, geocoding, GraphHopper and the other institutional services remain separate external dependencies.
+Both SQLite stores above are **local to their respective host**. They are not a
+central project database. Integration with the **project dashboard and project
+servers is in progress** and is intentionally absent from the implemented
+connections in this diagram. A local backend receipt does not establish dashboard
+availability or central-server synchronization.
 
----
+### Tracked source tree
 
-# 2. App entry and authentication
-
-The app starts with a splash screen and then chooses the initial screen from local state:
-
-- if a Cognitive Passport already exists, open the home screen;
-- in `localEmulator` or `localUsb`, open profile setup directly;
-- in `production`, a logged-in user without a completed profile enters setup;
-- otherwise, production opens the access-code login screen.
-
-Production login sends the access code to:
+This tree shows the published application folders and representative entry
+files. It excludes build output and private runtime directories.
 
 ```text
-POST https://imiq-public.et.uni-magdeburg.de/api/dayplanner/login
+.
+├── companion.py                         # Operational CLI
+├── frontend/                            # Android Gradle project
+│   ├── app/
+│   │   ├── build.gradle.kts
+│   │   └── src/
+│   │       ├── main/
+│   │       │   ├── AndroidManifest.xml
+│   │       │   ├── java/de/ovgu/imiq/companion/
+│   │       │   │   ├── MainActivity.kt
+│   │       │   │   ├── CompanionApp.kt / CompanionModel.kt
+│   │       │   │   ├── Data.kt / TripRepository.kt
+│   │       │   │   ├── TrackingService.kt / TrackingEngine.kt
+│   │       │   │   └── Other UI, map, profile, journey and contract modules
+│   │       │   ├── assets/
+│   │       │   │   ├── art/jrpg/         # Companion and scene sprite resources
+│   │       │   │   ├── branding/         # Product graphics
+│   │       │   │   ├── maps/             # Map styles and their notices
+│   │       │   │   └── licenses/
+│   │       │   └── res/
+│   │       │       ├── drawable/ / drawable-nodpi/
+│   │       │       ├── mipmap-anydpi-v26/ / mipmap-anydpi-v33/
+│   │       │       └── values/ / xml/
+│   │       └── debug/res/xml/            # Development network policy
+│   ├── gradle/wrapper/                   # Gradle bootstrap JAR and properties
+│   ├── scripts/build.mjs                 # Optional Node build launcher
+│   ├── build.gradle.kts / settings.gradle.kts
+│   └── gradle.properties / gradlew / gradlew.bat
+├── app-backend/
+│   ├── application.py                    # Flask application factory
+│   ├── api_routes.py                     # Shared API registration
+│   ├── main.py                           # Local HTTP entry point
+│   ├── resources.py / requirements.txt
+│   ├── model/                            # Numerical model and readout
+│   ├── passport/                         # Declared priorities and profile logic
+│   ├── services/                         # Search and model coordination
+│   ├── routing/                          # Routing, stops, departures and map APIs
+│   ├── context/                          # Weather and environmental context
+│   ├── climate/                          # Climate estimates and vehicle profiles
+│   ├── journeys/                         # Evidence validation and SQLite archive
+│   ├── explanations/                     # Checked evidence and narration
+│   ├── infrastructure/                   # Settings, limits, HTTP and compatibility
+│   ├── comfort_pilot/                    # Versioned experimental components
+│   ├── artifacts/                        # Public five-goal model metadata
+│   └── choice_wording_v1.json            # Versioned presentation wording
+├── contracts/
+│   ├── companion-identity-v1.json        # Product identifiers and contract hashes
+│   ├── hotco-signed-model-v1.json        # Numerical model parameters
+│   ├── journey-v1.schema.json
+│   ├── longitudinal-*.json               # Evidence and experimental schemas
+│   ├── climate-factors-v1.json
+│   ├── vehicle-*.json.gz                 # Public catalogues, not user profiles
+│   └── magdeburg-*.json                  # Public mobility reference data
+├── operations/
+│   ├── runtime.py                        # Service ownership and release lifecycle
+│   ├── transit.py                        # Bootstrap, GTFS updates and activation
+│   ├── checks.py / smoke.py              # Operational and synthetic diagnostics
+│   └── transit_runtime/
+│       ├── gtfs_subset.py                # Identity-preserving MVB extraction
+│       └── rt_proxy.py                   # Realtime filtering and compatibility
+├── deploy/
+│   ├── local.env.example / backend.env.example
+│   ├── constraints-python313.txt
+│   ├── gunicorn.conf.py
+│   ├── companion-*.service
+│   └── companion-transit-sync.timer / companion-transit-sync.sudoers
+├── .gitignore / .gitattributes
+├── README.md
+└── THIRD_PARTY_NOTICES.md
 ```
 
-The local build flavors deliberately bypass that remote login when no passport exists. This is a build-time development behavior and is not enabled in the production flavor.
+`comfort_pilot/` is part of the versioned API implementation; its presence does
+not enable operational learning. `artifacts/` contains small public model metadata,
+not generated reports or participant data. Android's production assets include
+the sibling `contracts/` folder through its Gradle configuration, so moving the
+Android project away from that folder breaks the expected build layout.
 
----
+### Main application flows
 
-# 3. Adaptive Cognitive Passport onboarding
+1. **Profile and search:** Android stores declared priorities locally and sends
+   an explicit search request to `/api/companion/routed-contextual-deliberation`.
+   The backend coordinates route providers, context and the versioned numerical
+   model. Returned alternatives and their evidence are saved in Android history.
+2. **Journey capture:** a user-started foreground service records permitted
+   location fixes into local journey state. Review and experience reporting also
+   support journeys without GPS. Capturing points does not establish movement.
+3. **Manual validation and archive:** the explicit validation action posts the
+   chosen search and journey to `/api/companion/journeys/validate`. The backend
+   validates the evidence, commits it to its local SQLite archive and then issues
+   a receipt. Retries are idempotent; stored revisions are immutable.
+4. **Transport maintenance:** `operations/transit.py` creates coherent releases
+   from public GTFS and OSM inputs. The realtime proxy accepts only compatible
+   identities; scheduled routing remains independently testable when RT fails.
 
-The current onboarding no longer asks the participant to rate all 44 need–mode belief cells.
+### Generated state: local only
 
-After the welcome / participant-ID screen, the five data steps are:
-
-1. **11 mobility needs**, each explicitly rated from 1 to 7.
-2. **Structural availability** for all four canonical modes: `car`, `bike`, `pt`, and `walk`.
-3. **Four mode valences**, shown in the Android UI on a 1–7 scale and converted to the HOTCO raw valence scale −3…+3 before submission.
-4. **Four fixed belief calibration questions**, returned by the backend.
-5. **Five environmental tolerance ratings**: `rain`, `crowding`, `darkness`, `traffic`, and `temperature`.
-
-At least one transport mode must be declared available.
-
-The adaptive onboarding does **not** currently use the legacy top-three need ranking or mode-use frequency as HOTCO inputs.
-
-## 3.1 Initial calibration questions
-
-The initial four belief questions are **fixed TRAIN-derived calibration items**. They are not selected adaptively during the initial onboarding.
-
-The backend returns exactly four question targets. The Android client then requires an explicit 1–7 response for each returned cell.
-
-## 3.2 Belief completion and provenance
-
-The canonical HOTCO topology still contains:
+The default runtime layout is created after setup and use. It is **not tracked**:
 
 ```text
-4 modes × 11 needs = 44 need–mode belief cells
+runtime/
+├── otp-shaded-2.7.0.jar
+└── state/
+    ├── transit-active.json               # Pointer to the selected public release
+    ├── transit-bootstrap/                # Public inputs for first graph creation
+    ├── transit-releases/<release>/
+    │   ├── graph/                        # GTFS, OSM, configs, manifest and graph.obj
+    │   ├── build-state.json / ready.json
+    │   └── build.log
+    ├── transit-sync.json                 # Public infrastructure status
+    ├── services/                         # Local process logs
+    └── user-data/journeys.sqlite3         # Private backend-local journey archive
 ```
 
-Initially:
-
-```text
-4  = directly observed belief ratings
-40 = estimator-derived belief values
-```
-
-The estimator uses the frozen Adaptive Cognitive Passport v1 artifact. The backend keeps measurement provenance explicit:
-
-- observed beliefs remain observed;
-- estimated beliefs remain estimated;
-- estimated beliefs may enter the normalized HOTCO belief matrix;
-- estimated values are **not** fabricated into raw 1–7 questionnaire answers.
-
-The adaptive serializer reports the use of a population-trained estimator truthfully. This is different from the strict legacy 44-observed-input contract.
-
----
-
-# 4. Availability is separate from preference
-
-Availability is a distinct structural input. The current phase uses only the participant's explicit declarations for `car`, `bike`, `pt`, and `walk`.
-
-Availability is **not inferred** from mode-use frequency, HOTCO activation, valence, preference, weather, routing output, or population values.
-
-The availability vector gates the corresponding HOTCO actions.
-
-The architecture intentionally leaves a provider boundary for a future version in which new mobility services or external accessibility information could be introduced without changing the core HOTCO solver. This repository does not modify the external routing service to achieve that.
-
----
-
-# 5. Initial HOTCO-CT bootstrap
-
-Once the four belief questions are answered, the Android app performs:
-
-```text
-POST /api/dyconet/adaptive-passport/complete
-POST /api/dyconet/adaptive-passport/bootstrap
-```
-
-The bootstrap payload contains the completed adaptive profile, explicit four-mode availability, and environmental tolerances.
-
-The backend then builds the full normalized HOTCO input and runs HOTCO-CT v4.3.
-
-The resulting Cognitive Passport contains normalized needs, the full normalized 4×11 belief matrix, valences, explicit availability, environmental tolerances, HOTCO terminal state and comparative readout, deterministic XAI diagnostics, measurement provenance, adaptive-passport metadata, and passport lineage/revision metadata.
-
-The initial adaptive passport is revision 1.
-
----
-
-# 6. Cognitive Passport persistence
-
-The current Cognitive Passport is persisted on the Android device through `PassportStore`.
-
-This does **not** mean that the passport never leaves the phone. When required for a live operation, the app transmits the relevant passport representation to the institutional services used for route ranking or contextual deliberation.
-
-The adaptive contract distinguishes observed measurements, model-estimated beliefs, explicit availability, environmental tolerances, and lineage/revision information.
-
-Client-carried passport validation is currently based on schema, provenance, and internal consistency. It should not be described as cryptographically tamper-proof authentication.
-
----
-
-# 7. Longitudinal profile refinement
-
-The Adaptive Cognitive Passport can evolve after onboarding.
-
-The backend may expose one profile-scoped micro-question candidate derived from deterministic XAI/profile diagnostics. The Android app never invents the target.
-
-A profile revision requires the active backend-generated question, a new explicit 1–7 user response, and `explicit_user_confirmation = true`.
-
-For the adaptive contract, the request is sent to:
-
-```text
-POST /api/dyconet/adaptive-passport/profile-update
-```
-
-The previous passport is retained as a separate lineage snapshot and a new passport revision is generated. An estimated belief may therefore become directly observed over time.
-
-The current trigger logic is relevance/provenance based. It should **not** be described as a calibrated statistical uncertainty estimator.
-
----
-
-# 8. Origin and destination
-
-The route screen uses a manually selected origin if one exists; otherwise it uses the device location.
-
-Destination and optional manual-origin search use the institutional geocoder:
-
-```text
-https://imiq-public.et.uni-magdeburg.de/api/geocode/
-```
-
-If the primary provider fails or produces no usable result, the Android client may use Photon as a fallback:
-
-```text
-https://photon.komoot.io/api/
-```
-
-Photon is not queried in parallel with every request. The fallback receives the search query, not the Cognitive Passport or HOTCO state.
-
-The app explicitly checks whether origin and destination are inside the current routing coverage area. A place that exists but lies outside supported coverage is treated differently from a geocoding failure.
-
----
-
-# 9. Route ranking: external service owns order
-
-Route ranking belongs to the separate routing service:
-
-```text
-POST https://imiq-app.et.uni-magdeburg.de/api/routing/ranked-routes
-```
-
-The intended request contains a routing-oriented view of the Cognitive Passport, start coordinates, destination coordinates, and reported mode availability.
-
-The routing service returns the ordered candidate list, including route rank, mode, availability, summary and value-fit information.
-
-## Non-negotiable ownership rule
-
-The Android client preserves routing order.
-
-HOTCO-CT and the Digital Companion must not claim that a HOTCO-preferred mode is automatically the fastest route, shortest route, optimal route, or routing rank 1.
-
-A selected route and a HOTCO contextual tendency are separate concepts.
-
-## Current adaptive integration blocker
-
-The present `PassportAdapter.toEnginePassport()` still validates the legacy strict-passport provenance:
-
-```text
-44 observed beliefs
-imputation_used == false
-population_or_synthetic_values_used == false
-```
-
-That contract is incompatible with the truthful Adaptive Cognitive Passport provenance:
-
-```text
-4 observed beliefs
-40 estimated beliefs initially
-belief estimation used
-population-trained estimator used
-```
-
-This adapter must be made adaptive-aware before the new onboarding can reach the routing service end to end.
-
----
-
-# 10. GraphHopper geometry
-
-The route-ranking service does not provide map geometry. After ranking, the Android client reconstructs geometry through GraphHopper:
-
-```text
-GET https://imiq-app.et.uni-magdeburg.de/api/graphhopper/route
-```
-
-Supported GraphHopper mappings are:
-
-| Routing mode | GraphHopper profile |
-|---|---|
-| `car` | `car` |
-| `bike` | `bike` |
-| `walk` / `foot` | `foot` |
-| public transport / unsupported composite modes | no GraphHopper reconstruction |
-
-GraphHopper provides polyline geometry, reconstructed distance/time, and turn-by-turn instructions where available.
-
-It does **not** replace the routing service's ranking or summary. The UI keeps the external routing rank authoritative and treats GraphHopper as supplemental geometry/navigation evidence.
-
-Geometry failures do not silently replace route-ranking results with demo data.
-
----
-
-# 11. Route-conditioned contextual deliberation
-
-After routing and geometry are available, Android can request:
-
-```text
-POST /api/dyconet/contextual-deliberation
-```
-
-The request includes the stored Cognitive Passport, environmental tolerance profile, ordered routing candidates, route/segment geometry where available, and a contextual query configuration.
-
-The backend runs one baseline HOTCO-CT simulation, contextual enrichment for each candidate route, one route-conditioned HOTCO-CT simulation per candidate, and a difference-from-baseline calculation. Candidate order is preserved.
-
-## 11.1 Current live context request
-
-The Android contract currently requests **weather** from the Orion context provider. The backend has broader provider infrastructure, but additional families should not be described as active Android inputs until their route semantics and UI handling are deliberately enabled.
-
-Missing or unusable context remains `UNKNOWN`, `EMPTY`, `UNAVAILABLE`, or otherwise explicitly represented. It is not silently replaced with neutral context.
-
-## 11.2 Current contextual forcing model
-
-The default contextual model is:
-
-```text
-F3_NEED_ONLY_V1
-```
-
-with default:
-
-```text
-rho = 0.25
-```
-
-F3 converts eligible contextual stressors and user tolerances into **need-only forcing**. Action and valence contextual forcing are zero in this model.
-
-The backend marks this contextual model:
-
-```text
-EXPERIMENTAL_UNCALIBRATED
-```
-
-It should therefore be interpreted as an experimental contextual extension, not a calibrated behavioral effect model.
-
-## Current adaptive compatibility blocker
-
-The contextual-deliberation backend currently reconstructs a strict questionnaire from Cognitive Passport values before running the baseline and route-conditioned simulations.
-
-That legacy reconstruction assumes every normalized belief can be mapped exactly back to an integer 1–7 raw response. Adaptive estimator-derived belief values do not have such fabricated raw answers and are not guaranteed to sit on that discrete grid.
-
-The contextual path therefore needs an adaptive-aware participant reconstruction route before Adaptive Passport → Contextual HOTCO is fully end-to-end compatible.
-
----
-
-# 12. Deterministic contextual XAI
-
-For a selected route with a contextual result, Android requests:
-
-```text
-POST /api/dyconet/contextual-explanation
-```
-
-This endpoint does **not** rerun HOTCO. It explains the existing deterministic contextual result.
-
-The explanation contract contains route-bound information such as baseline tendency, contextual tendency, whether the leader changed, ambiguity state, contextual drivers, supporting and opposing constraints, data-quality information, warnings, minimized evidence, and an evidence hash/version.
-
-The explanation is tied to a `route_id` and to the deterministic evidence version. A stale explanation is not reused after route or context changes.
-
----
-
-# 13. Digital Companion narration
-
-Natural-language narration is optional and server-side:
-
-```text
-POST /api/dyconet/contextual-explanation/narrate
-```
-
-The LLM does **not** receive the raw full app state as decision authority. Narration is generated from minimized deterministic evidence.
-
-The server controls provider configuration through environment variables:
-
-```text
-IMIQ_XAI_LLM_PROVIDER
-IMIQ_XAI_LLM_API_KEY
-IMIQ_XAI_LLM_BASE_URL
-IMIQ_XAI_LLM_MODEL
-```
-
-The current backend supports an AcademicCloud-compatible provider and a mock development provider. The Android app should not hard-code a specific LLM model name as part of the scientific architecture.
-
-## Narration safety boundary
-
-Recommendation authority remains deterministic. The language model supplies voice, not a new decision.
-
-Narration is validated against route identity, evidence version, supported modes, supported stressors, deterministic recommendation/ambiguity state, numeric evidence, and context freshness/fidelity.
-
-Provider failure or invalid generated content must not create a new mobility recommendation. The deterministic explanation/fallback remains the authoritative source.
-
----
-
-# 14. Result-screen behavior
-
-The route-results UI is progressive:
-
-```text
-routing
-  ↓
-routing rank available
-  ↓
-geometry reconstruction
-  ↓
-contextual analysis
-  ↓
-deterministic XAI
-  ↓
-optional narration
-```
-
-The app does not need to hide already valid routing results while an optional downstream layer is still loading or unavailable.
-
-The route cards preserve external routing order. Selecting a route controls map presentation, route detail, contextual explanation, narration, and navigation action. Selection does not rerank candidates.
-
----
-
-# 15. Navigation
-
-For supported routable modes, GraphHopper instructions can be shown in-app.
-
-Public transport or candidates without usable internal instructions may hand off to an external navigation application if a compatible handler is available.
-
-The UI disables navigation when neither internal instructions nor an external handler are available.
-
----
-
-# 16. Build variants
-
-The Android project defines one `environment` flavor dimension:
-
-| Variant | DYCONET base URL | Local core mode | Intended use |
-|---|---|---:|---|
-| `localEmulatorDebug` | `http://10.0.2.2:8077` | `true` | Android emulator |
-| `localUsbDebug` | `http://127.0.0.1:8077` | `true` | Physical device with `adb reverse` |
-| `productionDebug` | `https://imiq-app.et.uni-magdeburg.de` | `false` | Institutional test/deployment build |
-| `productionRelease` | `https://imiq-app.et.uni-magdeburg.de` | `false` | Release variant |
-
-Important: the flavor switches the **DYCONET** endpoint. The current routing, GraphHopper, geocoding and other external-service clients retain their own service URLs.
-
----
-
-# 17. Local development
+`COMPANION_STATE_DIR`, `COMPANION_OTP_JAR` and `COMPANION_JOURNEY_DB` can move
+these resources outside the checkout. The Android database stays in the app's
+private device storage; it is not this backend database. Generated transit data
+and private journey data have different purposes, even when their defaults share
+a `runtime/` parent folder.
+
+The previous remote application is preserved on the separate [`legacy`
+branch](https://github.com/imiq-project/app-frontend/tree/legacy), under `legacy/`.
+The current `master` branch contains the selected Companion application sources.
+It excludes tests, test fixtures, internal operational history, design drafts,
+compiled APKs, caches, logs, user data and credentials. Local development tests
+are kept separately; their absence here does not mean the app requires them.
 
 ## Requirements
 
-- JDK 17
-- Android SDK / platform compatible with `compileSdk = 34`
-- Android SDK path available through `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or a local non-versioned `local.properties`
+For Android compilation:
 
-Example PowerShell session:
+- Android Studio, or an Android SDK installation with platform **36**.
+- A compatible Java installation for Android Gradle Plugin 8.13.0 (Java 17 or
+  newer; Java 21 can also serve the backend transport tools).
+- Gradle is provided through the checked-in wrapper; do not install a different
+  global Gradle version to replace it.
+- Node.js is optional and needed only for the convenience scripts in
+  `frontend/scripts/`. Direct Gradle commands do not require Node.
+
+For the backend and local public transport:
+
+- Python **3.13** is the reference environment for the supplied constraints.
+- Java **21 or newer** for OpenTripPlanner 2.7.0.
+- Internet access for dependency and initial transport downloads, plus connected
+  routing, weather, geocoding and map services.
+- Several GB of free disk and RAM for graph building. Defaults reserve at least
+  2 GiB of free disk and allow a 4 GiB graph-build Java heap; increase resources
+  as needed. The default serving heap is 2 GiB.
+- PowerShell 7 (`pwsh`) for the Windows process-management commands, or Linux
+  with `/proc` available. Gunicorn and systemd templates target Linux.
+
+## 1. Obtain the source and configure Python
+
+```sh
+git clone --branch master https://github.com/imiq-project/app-frontend.git
+cd app-frontend
+python -m venv .venv
+```
+
+Activate the environment in PowerShell:
 
 ```powershell
-$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
-$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+.\.venv\Scripts\Activate.ps1
 ```
 
-Do not commit `local.properties`.
+Or on Linux:
 
-A template is provided:
-
-```text
-local.properties.example
+```sh
+. .venv/bin/activate
 ```
 
-## Local DYCONET backend
+Install the backend dependencies:
 
-Run the current DYCONET backend on port `8077`.
+```sh
+python -m pip install -r app-backend/requirements.txt -c deploy/constraints-python313.txt
+```
 
-### Emulator
+Copy `deploy/local.env.example` to `app-backend/.env` for local use. This example
+uses loopback binding and no API token, intended for development on your own
+computer. The real `.env` is private and must remain untracked. Process environment
+variables take precedence over it. Provider URLs are configuration examples;
+availability and access to IMIQ services must be confirmed with their operator.
 
 ```powershell
-.\gradlew.bat :app:testLocalEmulatorDebugUnitTest :app:assembleLocalEmulatorDebug
+Copy-Item deploy/local.env.example app-backend/.env
+python companion.py config --json
 ```
 
-APK:
+On Linux use `cp deploy/local.env.example app-backend/.env`.
 
-```text
-app/build/outputs/apk/localEmulator/debug/app-localEmulator-debug.apk
+## 2. Initialize local public transport
+
+A clean checkout deliberately has no OTP JAR, graph, GTFS feed or user database.
+Run the initial setup once:
+
+```sh
+python companion.py data transit bootstrap
 ```
 
-### Physical USB device
+This command:
 
-Expose the local backend to the phone:
+1. Refuses to overwrite an existing active transit installation.
+2. Downloads OTP 2.7.0 from its upstream release and verifies the pinned SHA-256.
+3. Downloads the Magdeburg OSM PBF extract from BBBike over HTTPS, or accepts a
+   local extract with `--osm /path/to/Magdeburg.osm.pbf`.
+4. Downloads the current public German GTFS feed and extracts MVB services while
+   retaining original trip, route and stop identities.
+5. Builds an OTP graph, writes and verifies input hashes, checks effective
+   timetable coverage, and creates the first active-release pointer.
+
+Setup writes only to configured runtime locations. It does **not** start services
+or claim that routing is available before the subsequent checks pass. A failed
+setup leaves the active pointer absent; fix the reported issue and retry.
+The OSM extract must cover Magdeburg. Its download is size checked and its
+resulting hash is recorded with the graph inputs; unlike the OTP executable,
+the moving OSM and GTFS sources are not pinned to an old snapshot.
+
+Start and inspect the services:
+
+```sh
+python companion.py ops plan
+python companion.py ops start
+python companion.py check --services
+python companion.py check --synthetic-route
+```
+
+Allow OTP time to load the graph before checking. The default ports are **8077**
+for the API, **8091** for OTP and **8092** for the realtime proxy. Scheduled transit
+readiness is checked independently of realtime availability. If realtime identity
+cannot be verified, transport must use the explicit scheduled fallback; identifiers
+are never relaxed to force realtime availability.
+
+For later updates:
+
+```sh
+python companion.py data transit sync
+python companion.py data transit status
+python companion.py data transit verify
+```
+
+`sync` checks for a new static feed, builds a coherent replacement when needed,
+and verifies scheduled routing before completing replacement activation. It can
+restart the owned local transport processes. `watch` repeats synchronization;
+the Linux service and timer templates support a ten-minute schedule. Installing
+those templates is a separate operator action, not part of bootstrap.
+
+Useful settings include `COMPANION_JAVA`, `COMPANION_OTP_JAR`, `COMPANION_STATE_DIR`,
+`COMPANION_OTP_BUILD_HEAP`, `COMPANION_OTP_HEAP`, and
+`COMPANION_TRANSIT_BUILD_TIMEOUT`. The default build timeout is 1800 seconds.
+
+The local transport extract covers **MVB**, not a complete regional or national
+rail network. Other route options depend on the configured routing providers.
+
+## 3. Build and connect the Android app
+
+Open **`frontend/`** in Android Studio, let Gradle synchronize, and build the
+`app` module. Keep the repository layout intact: the app also packages assets
+from the sibling **`contracts/`** directory.
+
+From the repository root on Windows:
 
 ```powershell
+node frontend/scripts/build.mjs assembleDebug
+```
+
+Or without Node, from `frontend/`:
+
+```powershell
+.\gradlew.bat assembleDebug
+```
+
+On Linux, from `frontend/`:
+
+```sh
+chmod +x gradlew
+./gradlew assembleDebug
+```
+
+The debug APK is generated at
+`frontend/app/build/outputs/apk/debug/app-debug.apk`. Compilation does not install
+the APK on a phone. SDK paths belong in environment variables (`ANDROID_HOME`)
+or your private `frontend/local.properties`, never in a committed machine-specific
+file. Release distribution requires your own privately managed signing setup.
+
+The default Android backend URL is `http://localhost:8077`. For an explicitly
+connected development phone, after installing the APK yourself, USB forwarding
+can connect that address to your computer:
+
+```sh
 adb reverse tcp:8077 tcp:8077
 ```
 
-Build:
+For the standard Android emulator use `http://10.0.2.2:8077` in the app's
+connection settings. A remote installation needs a reachable HTTPS endpoint.
+Debug builds permit cleartext development connections; the main network policy
+restricts cleartext to the configured local hosts.
 
-```powershell
-.\gradlew.bat :app:testLocalUsbDebugUnitTest :app:assembleLocalUsbDebug
+## Configuration and deployment
+
+`deploy/backend.env.example` documents the Linux deployment environment.
+`deploy/gunicorn.conf.py` configures the production WSGI server, and the
+`companion-*.service` files are templates whose paths, user, environment file and
+permissions must be adapted to your host. Linux deployment and HTTPS termination are operator responsibilities.
+
+Important configuration:
+
+| Variable | Meaning |
+| --- | --- |
+| `PORT`, `COMPANION_BIND_HOST` | Local API port and interface. |
+| `COMPANION_OTP_PORT`, `COMPANION_REALTIME_PORT` | Distinct transport process ports. |
+| `COMPANION_STATE_DIR` | Generated infrastructure state and release pointers. |
+| `COMPANION_JOURNEY_DB` | Private journey database path; preferably outside the source checkout. |
+| `COMPANION_JOURNEY_STORAGE_ENABLED` | Enables the backend journey archive. |
+| `COMPANION_ROUTING_BASE_URL` | External route-computation provider. |
+| `COMPANION_GRAPHHOPPER_BASE_URL` | External geometry provider. |
+| `COMPANION_ORION_BASE_URL` | External context provider where applicable. |
+| `COMPANION_OTP_BASE_URL`, `COMPANION_OTP_STATUS_URL` | OTP API and realtime identity status. |
+| `COMPANION_API_TOKEN` | Optional Bearer protection of `/api/`; required by the supplied Gunicorn configuration. |
+
+Gunicorn requires a private API token of at least 32 characters. The current
+Android connection settings configure a base URL and do **not** provide a Bearer
+token field. A token-protected remote API therefore needs client authentication
+integration before this Android version can use it directly. Do not bake server
+secrets into a public APK. The shared API token is not participant authentication.
+The repository does not provide a turnkey public multi-user service.
+
+Optional model-generated narration requires separately configured provider
+credentials. Never commit them. Numeric model results, availability and clinical
+or behavioral interpretations must not be inferred from a narration service.
+
+## Journey data and privacy
+
+Tracking and storage are separate operations. Android records user-started
+journeys locally; the explicit validation action sends evidence to the backend.
+Finishing a journey does **not** automatically synchronize GPS to the server.
+
+**SQLite is the current local data-management mechanism.** The Android app uses
+an on-device SQLite database. The backend uses a separate SQLite database local
+to the machine running the API; this does not mean that a journey has reached
+the project's central infrastructure.
+
+**Integration of data management into the project dashboard and project servers
+is in progress.** That integration is not yet available as a complete operational
+flow in this version. A successful receipt confirms a commit to the backend's
+local archive, not availability in the project dashboard or synchronization with
+project servers.
+
+The backend validates incoming journey evidence and commits valid records to
+its local SQLite archive. Successful archive receipts are issued after commit, retries are
+idempotent, and revisions are immutable. The default private location is
+`runtime/state/user-data/journeys.sqlite3`; configure `COMPANION_JOURNEY_DB` to
+separate production data from the application tree.
+
+Never commit or publish participant responses, journeys, coordinates, database
+files, phone exports, API keys, signing keys, logs or backups. Public GTFS/OSM
+infrastructure data is distinct from participant data; generated transport
+artifacts are also excluded from this source repository.
+
+GPS points do not by themselves establish that a person travelled, and a planned
+route is not proof of an observed journey. Validation, server storage, device
+capture and automatic synchronization are different claims.
+
+## Diagnostics and troubleshooting
+
+```sh
+python companion.py ops status
+python companion.py check --services
+python companion.py check --providers --validation
+python companion.py ops restart --service backend
+python companion.py ops stop
 ```
 
-APK:
+Diagnostics can use configured external providers. `--validation` checks HTTP
+rejection behavior; it is not a development test suite. The synthetic route
+check uses public coordinates and synthetic declarations and does not archive a
+participant. Default output goes to the terminal; `--output` saves a chosen report.
 
-```text
-app/build/outputs/apk/localUsb/debug/app-localUsb-debug.apk
-```
+- **No active transit release:** run `data transit bootstrap` first.
+- **Graph build failed:** inspect its `build.log` under
+  `runtime/state/transit-releases/`; check Java 21+, memory, disk, downloads and
+  timetable dates. Retry bootstrap if no active pointer exists.
+- **API works, realtime is degraded:** inspect compatibility and feed freshness;
+  retain scheduled routing instead of weakening GTFS identity checks.
+- **Phone cannot reach localhost:** check the app URL, USB forwarding and API
+  listener. `localhost` on a phone normally refers to the phone itself.
+- **401 from a remote API:** the server requires authentication; this Android
+  version needs the client integration described above.
+- **Another process owns a port:** lifecycle commands refuse to stop an unknown
+  listener. Resolve the conflict before retrying.
 
-The helper script `BUILD_LOCAL_APKS_WINDOWS.bat` can build the local variants after `local.properties` is configured.
+Health HTTP success alone does not establish full provider or route availability.
+Checks return 0 for success, 2 for degraded service, 3 for API unavailability and
+4 for OTP HTTP unavailability; operational command failures return 1.
 
----
+## Public data and third-party notices
 
-# 18. Production-debug validation
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the license files shipped
+with Android assets. OpenStreetMap attribution must remain visible. Climate
+factors are estimates with explicit boundaries, and vehicle registration names
+do not imply model-specific consumption measurements.
 
-The integration branch has been validated locally with:
-
-```powershell
-.\gradlew.bat :app:testProductionDebugUnitTest :app:assembleProductionDebug --stacktrace
-```
-
-Expected APK:
-
-```text
-app/build/outputs/apk/production/debug/app-production-debug.apk
-```
-
-A successful Gradle build confirms that the Android project compiles and that the unit-test suite passes. It does **not** by itself prove that every remote service contract is end-to-end compatible; the adaptive routing/context compatibility items documented above still require integration fixes/tests.
-
----
-
-# 19. GitHub Actions
-
-`.github/workflows/android-ci.yml` runs for pushes and pull requests targeting `master` or `main`.
-
-The workflow:
-
-1. checks out the repository;
-2. installs JDK 17;
-3. validates the Gradle wrapper;
-4. runs `./gradlew :app:testProductionDebugUnitTest --stacktrace`;
-5. runs `./gradlew :app:assembleProductionDebug --stacktrace`;
-6. uploads `app/build/outputs/apk/production/debug/*.apk`.
-
-Unit tests are not configured with `continue-on-error`; a failing test fails CI.
-
----
-
-# 20. Service map
-
-| Service | Endpoint / location | Responsibility |
-|---|---|---|
-| Login | `imiq-public.et.uni-magdeburg.de/api/dayplanner/login` | access code → token |
-| Adaptive start | `DYCONET_BASE_URL/api/dyconet/adaptive-passport/start` | validate needs/valences and return 4 fixed calibration questions |
-| Adaptive complete | `DYCONET_BASE_URL/api/dyconet/adaptive-passport/complete` | complete 4×11 belief profile with provenance |
-| Adaptive bootstrap | `DYCONET_BASE_URL/api/dyconet/adaptive-passport/bootstrap` | run initial HOTCO-CT and create Cognitive Passport |
-| Adaptive profile update | `DYCONET_BASE_URL/api/dyconet/adaptive-passport/profile-update` | explicit longitudinal passport revision |
-| Routing | `imiq-app.et.uni-magdeburg.de/api/routing/ranked-routes` | candidate generation/ranking |
-| GraphHopper | `imiq-app.et.uni-magdeburg.de/api/graphhopper/route` | supplemental geometry/instructions |
-| Primary geocoder | `imiq-public.et.uni-magdeburg.de/api/geocode/` | place query → coordinates |
-| Photon | `photon.komoot.io/api/` | fallback geocoding only |
-| Contextual deliberation | `DYCONET_BASE_URL/api/dyconet/contextual-deliberation` | baseline + route-conditioned HOTCO |
-| Contextual XAI | `DYCONET_BASE_URL/api/dyconet/contextual-explanation` | deterministic explanation |
-| Digital Companion narration | `DYCONET_BASE_URL/api/dyconet/contextual-explanation/narrate` | optional bounded narration |
-| Orion | queried server-side by DYCONET | structured live context |
-| LLM provider | configured server-side | narration only; no routing/HOTCO authority |
-
----
-
-# 21. Scientific and architectural invariants
-
-The current implementation is intended to preserve the following rules:
-
-1. **Observed and estimated beliefs are not conflated.**
-2. **Estimated beliefs never become fabricated raw user answers.**
-3. **Availability remains separate from cognitive preference.**
-4. **Trip context does not automatically rewrite the stable Cognitive Passport.**
-5. **Longitudinal profile changes require explicit user confirmation.**
-6. **Routing owns candidate generation and rank.**
-7. **GraphHopper supplies supplemental geometry, not rank.**
-8. **Context can modify HOTCO deliberation without modifying routing rank.**
-9. **F3 contextual forcing is experimental and currently need-only.**
-10. **Deterministic XAI precedes optional LLM narration.**
-11. **The LLM cannot invent a recommendation that contradicts deterministic evidence.**
-12. **Unknown or unavailable external data remain explicitly unknown/unavailable.**
-13. **No demo route, sample passport, fixed confidence value, or neutral replacement is silently substituted for a failed live dependency.**
-
----
-
-# 22. Adaptive model status
-
-The Adaptive Cognitive Passport v1 is currently an **experimental, internally validated personalization layer**.
-
-The initial four-item calibration policy is frozen and TRAIN-derived. The remaining belief cells are statistically estimated, and later explicit micro-question answers can progressively replace estimated cells with observed measurements.
-
-This should not be described as independent confirmatory validation, calibrated uncertainty estimation, or proof that more-than-four personalization is already externally validated.
-
----
-
-# 23. Remaining work before end-to-end adaptive production readiness
-
-The highest-priority integration tasks are:
-
-1. **Make `PassportAdapter` adaptive-aware.** Accept valid Adaptive Cognitive Passport provenance instead of requiring 44 observed beliefs, while continuing to expose provenance honestly.
-2. **Add an adaptive passport → routing contract test.** A freshly bootstrapped 4-observed/40-estimated passport must successfully produce the routing request expected by the external service.
-3. **Make contextual-deliberation reconstruction adaptive-aware.** Reuse the normalized adaptive HOTCO profile directly or use a dedicated adaptive reconstruction path; do not invert estimated beliefs into invented integer raw responses.
-4. **Add an adaptive route → context → XAI integration test.** Verify route identity, candidate order, geometry association, context propagation, deterministic evidence and narration fallback.
-5. **Deploy the matching DYCONET backend before relying on the production flavor.** Android and backend schema versions must move together.
-6. **Run a physical-device production-style smoke test after deployment.**
-
----
-
-# 24. Main technologies
-
-- Kotlin
-- Jetpack Compose / Material 3
-- Retrofit / OkHttp
-- Gson and kotlinx-serialization
-- Kotlin coroutines
-- Google Play Services Location
-- MapLibre GL
-- Python / Flask DYCONET backend
-- HOTCO-CT v4.3
-- GraphHopper
-- FIWARE/Orion context provider
-- optional server-side LLM narration provider
-
----
-
-## Repository responsibility
-
-This repository contains the **Android frontend**.
-
-The HOTCO-CT / Adaptive Cognitive Passport service lives in the IMIQ backend DYCONET service.
-
-The external route-ranking service remains a separate component and is not owned by HOTCO-CT.
+This repository does not grant a new blanket license to Companion source code,
+project branding or third-party assets. Third-party licenses retain their own
+terms; obtain authorization from the respective rights holders where needed.

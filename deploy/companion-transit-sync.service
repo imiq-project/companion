@@ -1,0 +1,16 @@
+[Unit]
+Description=Companion GTFS synchronization with scheduled-route validation
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=companion-transit
+Group=companion
+WorkingDirectory=/opt/companion
+EnvironmentFile=/etc/companion/backend.env
+Environment=COMPANION_SERVICE_MANAGER=systemd
+Environment=COMPANION_SYSTEMCTL_SUDO=1
+ExecStart=/opt/companion/.venv/bin/python /opt/companion/companion.py data transit sync
+TimeoutStartSec=45min
+UMask=0027

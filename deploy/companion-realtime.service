@@ -1,0 +1,19 @@
+[Unit]
+Description=Companion GTFS realtime identity proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=companion-transit
+Group=companion
+WorkingDirectory=/opt/companion
+EnvironmentFile=/etc/companion/backend.env
+ExecStart=/opt/companion/.venv/bin/python /opt/companion/companion.py run-service realtime
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

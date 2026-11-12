@@ -1,0 +1,42 @@
+{
+  "model_version": "hotco_signed_grossberg_5goals_v1",
+  "state_bounds": [
+    -1,
+    1
+  ],
+  "mode_order": [
+    "car",
+    "bike",
+    "pt",
+    "walk"
+  ],
+  "decay": 0.05,
+  "tau": 0.8,
+  "kappa": 0.5,
+  "c": 0.25,
+  "belief_scaling": "no division by need count",
+  "rectification": "after W @ state",
+  "availability_policy": "readout_only_full_four_mode_field",
+  "solver": "DOP853",
+  "rtol": 1e-09,
+  "atol": 1e-11,
+  "max_step": 0.1,
+  "primary_horizon": 400,
+  "max_extension": 1600,
+  "root_replaces_integrated_endpoint": false,
+  "readout": "direct signed terminal action evaluations; no probabilities or normalization",
+  "history_policy": "append new results; never rewrite saved predictions or declared inputs",
+  "source": "Signed Grossberg field derived from prior engine; five-goal app variant, see docs/FIVE_GOALS_04132.md",
+  "readout_version": "signed-actions-v1",
+  "action_tie_tolerance": 1e-06,
+  "need_order": [
+    "pro_env",
+    "physical",
+    "cost",
+    "speed",
+    "comfort"
+  ],
+  "n_needs": 5,
+  "n_states": 13,
+  "architecture_change": "User-authorized removal of six goals; same signed field and gains; no parameter refit"
+}

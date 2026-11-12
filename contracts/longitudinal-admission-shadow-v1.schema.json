@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:companion:longitudinal-admission-shadow-v1",
+  "title": "Candidate admission receipt: original remains the only operational source",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "policy",
+    "policy_digest",
+    "receipt_digest",
+    "target",
+    "mode",
+    "as_of",
+    "source_digest",
+    "shadow_state_before_method_gates",
+    "shadow_candidate_model",
+    "shadow_candidate_value",
+    "model_assessments",
+    "method_blockers",
+    "operational_source",
+    "operational_value",
+    "operational_reason",
+    "original_empirically_confirmed",
+    "active_passport_modified",
+    "hotco_modified",
+    "activation_applied"
+  ],
+  "properties": {
+    "schema_version": {
+      "enum": [
+        "longitudinal-admission-shadow-v1",
+        "d-day-admission-shadow-v1"
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "method_qualified",
+        "production_activation_allowed"
+      ],
+      "properties": {
+        "schema_version": {
+          "enum": [
+            "longitudinal-admission-shadow-v1",
+            "d-day-admission-shadow-v1"
+          ]
+        },
+        "method_qualified": {
+          "const": false
+        },
+        "production_activation_allowed": {
+          "const": false
+        }
+      }
+    },
+    "policy_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "receipt_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "source_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "target": {
+      "enum": [
+        "comfort",
+        "affect"
+      ]
+    },
+    "mode": {
+      "enum": [
+        "car",
+        "bike",
+        "pt",
+        "walk"
+      ]
+    },
+    "as_of": {
+      "type": "string"
+    },
+    "shadow_state_before_method_gates": {
+      "enum": [
+        "learned_contextual",
+        "learned_basic",
+        "original_practical_equivalence",
+        "original_insufficient_evidence"
+      ]
+    },
+    "shadow_candidate_model": {
+      "enum": [
+        "basic",
+        "contextual",
+        null
+      ]
+    },
+    "shadow_candidate_value": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": -1,
+      "maximum": 1
+    },
+    "model_assessments": {
+      "type": "object"
+    },
+    "method_blockers": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "string"
+      }
+    },
+    "operational_source": {
+      "const": "original"
+    },
+    "operational_value": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1
+    },
+    "operational_reason": {
+      "const": "method_not_qualified_shadow_only"
+    },
+    "original_empirically_confirmed": {
+      "const": false
+    },
+    "active_passport_modified": {
+      "const": false
+    },
+    "hotco_modified": {
+      "const": false
+    },
+    "activation_applied": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# Install as root-owned /etc/sudoers.d/companion-transit-sync (0440), validate with visudo.
+# Exact transport units only; never grant these permissions to the API user.
+companion-transit ALL=(root) NOPASSWD: /usr/bin/systemctl stop companion-realtime.service companion-otp.service
+companion-transit ALL=(root) NOPASSWD: /usr/bin/systemctl start companion-realtime.service companion-otp.service

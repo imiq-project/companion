@@ -1,19 +1,49 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Secrets and local configuration
+.env
+.env.*
+*.env
+!.env.example
+!*.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
 local.properties
 
-# local build/test artifacts
+# Generated runtime and participant data
+/runtime/
+*.db
+*.db-*
+*.sqlite*
+*.log
+*.zip
+*.tar
+*.apk
+*.aab
+*.pbf
+*.obj
+
+# Local environments and generated builds
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.gradle/
 .kotlin/
-parsing_report.json
+**/build/
+.idea/
+.vscode/
+.DS_Store
+
+# Internal development material is maintained separately
+/AGENTS.md
+/PRODUCTION.md
+/.superdesign/
+/docs/
+/validation/
+/app-backend/tests/
+/frontend/test-fixtures/
+/frontend/app/src/test/
+/frontend/app/src/androidTest/

@@ -1,0 +1,10 @@
+# Preserve existing Windows sources without treating CRLF as trailing whitespace.
+# No automatic line-ending conversion or broad formatting migration.
+*.py whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+*.ps1 whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+*.md whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/.githooks/* text eol=lf
+/.github/workflows/*.yml text eol=lf
+# Shared contracts are hashed as exact bytes by Python and Android.
+/contracts/** -text
+/frontend/gradlew text eol=lf
