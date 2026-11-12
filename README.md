@@ -75,11 +75,10 @@ material is not used as current profile input.
 
 ### Reading the diagrams
 
-The palette follows the **IMIQ Project Design Styleguide, 16 March 2026**, printed
-pages 18–23: **Majorelle `#623CEA`**, **Pale Blue `#A5C4D4`** and **OVGU Burgundy
-`#7A003F`**, with their specified light variants. White and black provide neutral
-backgrounds and text. The same role always keeps the same color throughout this
-README; colors identify components, not transport modes or model outcomes.
+The diagrams use the official IMIQ palette: **Majorelle purple, Pale Blue and
+OVGU Burgundy**, together with their light variants. Each component keeps the
+same color throughout this guide. The visual legend below shows the colors;
+the table explains their meaning.
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"fontFamily":"Arial, sans-serif","primaryColor":"#D0C9E5","primaryTextColor":"#000000","primaryBorderColor":"#623CEA","secondaryColor":"#A5C4D4","tertiaryColor":"#FFFFFF","lineColor":"#623CEA","textColor":"#000000","edgeLabelBackground":"#FFFFFF","clusterBkg":"#FFFFFF","clusterBorder":"#623CEA"},"flowchart":{"htmlLabels":false,"curve":"linear","nodeSpacing":35,"rankSpacing":40,"wrappingWidth":220,"padding":18}}}%%
@@ -103,15 +102,16 @@ flowchart LR
     linkStyle default stroke:#623CEA,stroke-width:1.5px;
 ```
 
-| Diagram role | Brand treatment | Meaning |
+| Component | Visual appearance | Meaning |
 | --- | --- | --- |
-| Android | Majorelle `#623CEA`, white text | App UI, state and device-side logic. |
-| Backend | Majorelle 25% `#D0C9E5`, Majorelle outline | Flask handlers and application/domain services. |
-| Provider | Pale Blue `#A5C4D4`, Majorelle outline | Separate processes and external/public data services. |
-| Local storage | Burgundy 12% `#F4E9EF`, Burgundy outline | Private SQLite persistence on its respective host. |
-| Shared contract | White, dashed Majorelle outline | A schema or versioned resource, rather than a running service. |
-| User action / decision | Burgundy `#7A003F`, or a white Burgundy-outlined diamond | Explicit consent/action or a checked condition. |
-| Integration in progress | Pale Blue 33% `#E4EBF2`, dashed Burgundy outline | Planned integration, not an implemented connection. |
+| Android | Purple | App interface, state and device-side logic. |
+| Backend | Light purple | Flask handlers and application services. |
+| Provider | Pale blue | External services and separate transport processes. |
+| Local storage | Light pink cylinder with a burgundy outline | Private SQLite database on the device or backend host. |
+| Shared contract | White box with a dashed purple outline | Shared schema or versioned resource. |
+| User action | Burgundy box | An explicit action taken by the user. |
+| Decision | White diamond with a burgundy outline | A condition checked by the application. |
+| Integration in progress | Light blue box with a dashed burgundy outline | Integration that is not yet operational. |
 
 Arrows show the named interaction or dependency. A dashed **schema** connection
 means a shared resource dependency; a dashed **in-progress** connection describes
