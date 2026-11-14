@@ -33,8 +33,12 @@ import org.json.JSONObject
  val initial=remember(referenceKey){reference?.getJSONObject("ratings")?.copyJson()?:JSONObject()}
  var values by remember(referenceKey){mutableStateOf(initial.copyJson())}
  ScreenColumn {
-  TextButton(onBack){Text(model.text("← Menu","← Menü"))}
-  Heading("Goal Personalization")
+  TextButton(onBack){Text(model.text("← Personalization","← Personalisierung"))}
+  Heading(model.text("Weekly goals","Wochenziele"))
+  model.weeklyPriorityUploadStatus()?.let {status->Copy(when(status){
+   "stored"->model.text("Weekly reference saved on the server.","Wochenreferenz auf dem Server gespeichert.")
+   "blocked","failed"->model.text("Weekly reference saved on this phone. Server transfer needs review.","Wochenreferenz auf diesem Telefon gespeichert. Serverübertragung muss geprüft werden.")
+   else->model.text("Weekly reference saved locally. Server transfer pending…","Wochenreferenz lokal gespeichert. Serverübertragung ausstehend…")})}
   Copy(model.text("Weekly priorities · ","Wöchentliche Prioritäten · ")+week())
   Copy(model.text("How important is each goal for your journeys this week? Rate each separately. These values are the starting point for new searches.","Wie wichtig ist dir jedes Ziel für deine Wege diese Woche? Bewerte jedes einzeln. Diese Werte gelten als Ausgangspunkt für neue Suchen."))
   if(reference?.optString("source")=="inherited_explicit_ratings")Copy(model.text("Proposed from your previous declarations. Not yet confirmed for this week.","Aus deinen bisherigen Angaben vorgeschlagen. Für diese Woche noch nicht bestätigt."),Gold)

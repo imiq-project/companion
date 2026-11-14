@@ -1,0 +1,2 @@
+# Optional block-03 MongoDB integration. Install alongside backend requirements.
+pymongo>=4.14,<5

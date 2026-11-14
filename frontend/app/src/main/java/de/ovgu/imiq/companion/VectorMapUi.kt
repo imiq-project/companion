@@ -120,15 +120,15 @@ enum class JourneyMapStyle(val key:String) {
  Canvas(Modifier.size(70.dp,54.dp)) {
   val dark=style==JourneyMapStyle.Night
   val w=size.width;val h=size.height
-  drawRoundRect(if(dark)Color(0xFF19151F)else Color(0xFFF5F1EA),cornerRadius=androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()))
-  drawCircle(if(dark)Color(0xFF293C33)else Color(0xFFD9E4CE),w*.2f,Offset(w*.8f,h*.2f))
-  drawLine(if(dark)Color(0xFF43677A)else Color(0xFFBBCFD5),Offset(w*.07f,0f),Offset(w*.32f,h),w*.09f)
-  drawLine(if(dark)Color(0xFF51485B)else Color.White,Offset(0f,h*.7f),Offset(w,h*.35f),w*.09f)
-  drawLine(if(dark)Color(0xFF51485B)else Color.White,Offset(w*.53f,0f),Offset(w*.73f,h),w*.07f)
+  drawRoundRect(if(dark)CompanionPalette.Text else CompanionPalette.Background,cornerRadius=androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()))
+  drawCircle(if(dark)CompanionPalette.Burgundy else CompanionPalette.Blue,w*.2f,Offset(w*.8f,h*.2f))
+  drawLine(if(dark)CompanionPalette.Primary else CompanionPalette.Blue,Offset(w*.07f,0f),Offset(w*.32f,h),w*.09f)
+  drawLine(if(dark)CompanionPalette.Lavender else Color.White,Offset(0f,h*.7f),Offset(w,h*.35f),w*.09f)
+  drawLine(if(dark)CompanionPalette.Lavender else Color.White,Offset(w*.53f,0f),Offset(w*.73f,h),w*.07f)
   if(style==JourneyMapStyle.Mobility) {
-   drawLine(Color(0xFF168269),Offset(0f,h*.8f),Offset(w,h*.47f),2.dp.toPx())
-   drawLine(Color(0xFF297BAC),Offset(w*.63f,0f),Offset(w*.83f,h),2.dp.toPx())
-   drawCircle(Color(0xFF80649C),3.dp.toPx(),Offset(w*.62f,h*.58f))
+   drawLine(CompanionPalette.Burgundy,Offset(0f,h*.8f),Offset(w,h*.47f),2.dp.toPx())
+   drawLine(CompanionPalette.Primary,Offset(w*.63f,0f),Offset(w*.83f,h),2.dp.toPx())
+   drawCircle(CompanionPalette.Text,3.dp.toPx(),Offset(w*.62f,h*.58f))
   }
  }
 }
@@ -159,10 +159,10 @@ enum class JourneyMapStyle(val key:String) {
 @Composable internal fun MobilityMapLegend(model:CompanionModel,modifier:Modifier=Modifier) {
  Surface(modifier,color=Panel.copy(alpha=.95f),shape=MaterialTheme.shapes.medium) {
   Row(Modifier.padding(horizontal=9.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(9.dp),verticalAlignment=Alignment.CenterVertically) {
-   listOf("walk" to Color(0xFF297BAC),"bike" to Color(0xFF168269),"pt" to Color(0xFF80649C)).forEach {(mode,color)->
+   listOf("walk" to CompanionPalette.Primary,"bike" to CompanionPalette.Burgundy,"pt" to CompanionPalette.Text).forEach {(mode,color)->
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)) {
      Canvas(Modifier.size(8.dp)){drawCircle(color)}
-     Text(when(mode){"walk"->model.text("Paths","Wege");"bike"->model.text("Cycle","Rad");else->model.text("Rail/stops","Bahn/Stopps")},style=MaterialTheme.typography.labelSmall,color=Pale)
+     Text(when(mode){"walk"->model.text("Paths","Wege");"bike"->model.text("Cycle","Rad");else->model.text("Rail","Bahn")},style=MaterialTheme.typography.labelSmall,color=Pale)
     }
    }
   }

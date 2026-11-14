@@ -38,6 +38,13 @@ def validate_companion_json_body() -> Any:
     if request.method != "POST" or not is_companion:
         return None
 
+    if canonical_api_path(request.path) in ('/api/companion/data/test/profile-versions', '/api/companion/data/profile-versions', '/api/companion/data/priority-observations', '/api/companion/data/search-metadata', '/api/companion/data/search-results', '/api/companion/data/hotco-simulations'):
+        from infrastructure.service_runtime import check_body_limit, body_too_large
+        if request.content_length is not None and request.max_content_length is not None and request.content_length > request.max_content_length:
+            return body_too_large()
+        # Keep exact cached bytes, including streams without Content-Length.
+        return check_body_limit()
+
     if canonical_api_path(request.path) == '/api/companion/longitudinal/prospective/forecast' or canonical_api_path(request.path).startswith('/api/companion/longitudinal/backend-experiment/'):
         # This endpoint performs bounded decoding before JSON parsing, including
         # lossless gzip bodies. Do not pre-parse its wire bytes as plain JSON.

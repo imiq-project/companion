@@ -28,11 +28,22 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
  val store:Store get(){revision;return database}
  val api=Api(database)
  val trips=TripRepository(app,database)
+ private val panelSessions=PanelSessionStore(app)
+ private val panelSessionGate=Mutex()
+ internal var panelIdentity by mutableStateOf<JSONObject?>(null)
+  private set
+ internal var panelLoginBusy by mutableStateOf(false)
+  private set
+ internal var panelLoginError by mutableStateOf<String?>(null)
+  private set
+ private var panelOperation:Job?=null
+ private var panelRestoreStarted=false
  internal val experienceDrafts=ExperienceDraftWriter(database,viewModelScope)
  var tripSearchId by mutableStateOf<String?>(null)
  var tripId by mutableStateOf<String?>(null)
  var tripStartingSearchId by mutableStateOf<String?>(null)
  init {
+  database.put(PANEL_LOGIN_MODE,"1")
   viewModelScope.launch {TripUpdates.revision.collect {revision++}}
   viewModelScope.launch {TripUpdates.errors.collect {failure->
    error=failure.message
@@ -40,11 +51,6 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
   }}
  }
  var ready by mutableStateOf(false)
- var startupVisible by mutableStateOf(true)
- fun skipStartupWelcome(){if(ready)startupVisible=false}
- private var startupStartedAt:Long?=null
- fun beginStartupWelcome(){if(startupStartedAt==null)startupStartedAt=android.os.SystemClock.elapsedRealtime()}
- fun startupElapsedMs():Long = startupStartedAt?.let {(android.os.SystemClock.elapsedRealtime()-it).coerceAtLeast(0L)}?:0L
  var migrationError by mutableStateOf<String?>(null)
  var pendingImport by mutableStateOf<JSONObject?>(null)
  var tab by mutableStateOf("home")
@@ -63,6 +69,157 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
   private set
  var pendingPassport by mutableStateOf<JSONObject?>(null)
  private var pendingFingerprint:String?=null
+ private var pendingQuestionnaireAttemptId:String?=null
+ private var profileUploadJob:Job?=null
+ private var priorityUploadJob:Job?=null
+ private var searchUploadJob:Job?=null
+ private var resultsUploadJob:Job?=null
+ private var hotcoUploadJob:Job?=null
+ internal fun startHotcoUploads(){
+  if(panelIdentity?.optBoolean("local_test_profile_upload")!=true||hotcoUploadJob?.isActive==true)return
+  hotcoUploadJob=viewModelScope.launch {processHotcoUploads(database,api,::requestPanelProfile){revision++}}
+ }
+ internal fun hotcoUploadStatus(id:String):String? {revision;return database.hotcoUploadHeader(HotcoUpload.revision(id))?.optString("status")}
+ internal fun startResultsUploads(){
+  if(panelIdentity?.optBoolean("local_test_profile_upload")!=true||resultsUploadJob?.isActive==true)return
+  resultsUploadJob=viewModelScope.launch {processResultsUploads(database,api,::requestPanelProfile){revision++}}
+ }
+ internal fun resultsUploadStatus(id:String):String? {revision;return database.resultsUploadHeader(ResultsUpload.revision(id))?.optString("status")}
+ internal fun startSearchUploads(){
+  if(panelIdentity?.optBoolean("local_test_profile_upload")!=true||searchUploadJob?.isActive==true)return
+  searchUploadJob=viewModelScope.launch {processSearchUploads(database,api,::requestPanelProfile){revision++}}
+ }
+ internal fun searchUploadStatus(id:String):String? {revision;return database.json(SEARCH_UPLOAD_PREFIX+SearchUpload.revision(id))?.optString("status")}
+ private fun modelContractHash():String=getApplication<Application>().assets.open("companion-identity-v1.json").bufferedReader().use {
+  JSONObject(it.readText()).getJSONObject("current_contract_sha256").getString("contracts/hotco-signed-model-v1.json")}
+ internal fun startPriorityUploads(){
+  if(panelIdentity?.optBoolean("local_test_profile_upload")!=true||priorityUploadJob?.isActive==true)return
+  priorityUploadJob=viewModelScope.launch {processPriorityUploads(database,api,::requestPanelProfile){revision++}}
+ }
+ internal fun priorityUploadStatus(searchId:String):String? {
+  revision
+  return database.json(PRIORITY_UPLOAD_PREFIX+PriorityUpload.revision("predecision_ema",searchId))?.optString("status")
+ }
+ internal fun weeklyPriorityUploadStatus():String? {
+  revision
+  val id=profile()?.optJSONObject("lineage")?.optString("passport_id")?:return null
+  return database.json(PRIORITY_UPLOAD_PREFIX+PriorityUpload.revision("weekly_reference_confirmation",id))?.optString("status")
+ }
+ internal fun startProfileUploads(){
+  // Explicit local test permission is separate from unverified study consent.
+  if(panelIdentity?.optBoolean("local_test_profile_upload")!=true)return
+  database.put(PANEL_LOGIN_MODE,"1")
+  startPriorityUploads();startSearchUploads();startResultsUploads();startHotcoUploads()
+  if(profileUploadJob?.isActive==true)return
+  profileUploadJob=viewModelScope.launch {processProfileUploads(database,api,::requestPanelProfile){revision++}}
+ }
+ internal fun profileUploadStatus():String? {
+  revision
+  val attempt=database.passport()?.optString("questionnaire_attempt_id")?:return null
+  val job=database.profileUploadJobs().lastOrNull {it.optString("questionnaire_attempt_id")==attempt}?:return null
+  if(job.optString("status")=="stored")return "stored"
+  if(panelIdentity?.optBoolean("local_test_profile_upload")!=true)return "authorization_pending"
+  if(job.optJSONObject("upload_identity")==null)return "identity_unlinked"
+  return job.optString("status")
+ }
+ internal fun restorePanelLogin(){
+  if(panelRestoreStarted)return
+  panelRestoreStarted=true
+  database.put(PANEL_LOGIN_MODE,"1");profileUploadJob?.cancel();priorityUploadJob?.cancel();searchUploadJob?.cancel();resultsUploadJob?.cancel();hotcoUploadJob?.cancel()
+  panelOperation=viewModelScope.launch {
+   panelLoginBusy=true
+   try {
+    val saved=withContext(Dispatchers.IO){panelSessions.read()}?:return@launch
+    if(!saved.has("access")||!saved.has("refresh"))return@launch
+    if(saved.optString("backend")!=api.base())return@launch
+    val base=api.base()
+    val response=try {api.panelRequest("/me",access=saved.getString("access"),expectedBase=base)}catch(e:ApiHttpException){
+     if(e.status!=401)throw e
+     api.panelRequest("/refresh",obj("refresh" to saved.getString("refresh")),expectedBase=base)
+    }
+    val identity=validatePanelIdentity(response.getJSONObject("identity"))
+    require(identity.getString("participant_id")==saved.getJSONObject("identity").getString("participant_id"))
+    val session=(if(response.has("access"))response.copyJson().put("backend",base)else saved).put("identity",identity)
+    withContext(Dispatchers.IO){panelSessions.write(session)}
+    require(api.base()==base)
+    panelIdentity=identity
+    startProfileUploads()
+   }catch(e:CancellationException){throw e}catch(e:Exception){panelLoginError=panelFailure(e)}
+   finally{panelLoginBusy=false}
+  }
+ }
+ internal fun signInPanel(email:String,password:String){
+  if(panelLoginBusy)return
+  panelOperation=viewModelScope.launch {
+   panelLoginBusy=true;panelLoginError=null
+   try {
+    val base=api.base()
+    val response=api.panelRequest("/login",obj("email" to email,"password" to password),expectedBase=base)
+    val identity=validatePanelIdentity(response.getJSONObject("identity"))
+    // The binding survives logout/reset/import; another user must clear app data.
+    val prior=withContext(Dispatchers.IO){panelSessions.read()}
+    require(prior==null||prior.getJSONObject("identity").getString("participant_id")==identity.getString("participant_id")) {"different_panel_account"}
+    require(api.base()==base)
+    response.put("backend",base)
+    withContext(Dispatchers.IO){panelSessions.write(response)}
+    panelIdentity=identity
+    startProfileUploads()
+   }catch(e:CancellationException){throw e}catch(e:Exception){panelLoginError=panelFailure(e)}
+   finally{panelLoginBusy=false}
+  }
+ }
+ internal fun signOutPanel(){
+  if(panelLoginBusy)return
+  if(database.json(ACTIVE_TRIP)!=null||database.json(ACTIVE_PLAYBACK)!=null)return
+  panelOperation?.cancel();profileUploadJob?.cancel();priorityUploadJob?.cancel();searchUploadJob?.cancel();resultsUploadJob?.cancel();hotcoUploadJob?.cancel()
+  panelOperation=viewModelScope.launch {
+   panelLoginBusy=true
+   try {panelSessionGate.withLock {
+    withContext(Dispatchers.IO){val old=panelSessions.read();if(old!=null){old.remove("access");old.remove("refresh");panelSessions.write(old)}}
+    panelIdentity=null;panelLoginError=null
+   }}catch(e:CancellationException){throw e}catch(e:Exception){panelLoginError=panelFailure(e)}
+   finally{panelLoginBusy=false}
+  }
+ }
+ private suspend fun requestPanelProfile(job:JSONObject,path:String,body:String?):JSONObject=panelSessionGate.withLock {
+  val current=panelIdentity?:throw PanelUploadPaused()
+  val owner=job.optJSONObject("upload_identity")?:throw PanelUploadPaused()
+  if(canonical(owner)!=canonical(panelUploadBinding(current)))throw PanelUploadPaused()
+  val base=job.getString("target_base")
+  require(ProfileUpload.localBase(base)&&api.base()==base)
+  var session=withContext(Dispatchers.IO){panelSessions.read()}?:throw PanelUploadPaused()
+  require(session.optString("backend")==base&&canonical(panelUploadBinding(session.getJSONObject("identity")))==canonical(owner))
+  if(!session.has("access")||!session.has("refresh"))throw PanelUploadPaused()
+  suspend fun send():JSONObject=withContext(Dispatchers.IO){
+   require(api.base()==base)
+   apiJsonRequest(base+path,timeout=if(path==RESULTS_UPLOAD_PATH||path==HOTCO_UPLOAD_PATH)120000 else 30000,rawBody=body?.toByteArray(Charsets.UTF_8),bearer=session.getString("access"),participantId=owner.getString("participant_id"))
+  }
+  try {send()}catch(e:ApiHttpException){
+   if(e.status!=401)throw e
+   val refreshed=try {api.panelRequest("/refresh",obj("refresh" to session.getString("refresh")),expectedBase=base)}catch(refreshError:ApiHttpException){
+    if(refreshError.status!=401)throw refreshError
+    session.remove("access");session.remove("refresh");withContext(Dispatchers.IO){panelSessions.write(session)}
+    panelIdentity=null;panelLoginError=panelFailure(refreshError);throw PanelUploadPaused()
+   }
+   val identity=validatePanelIdentity(refreshed.getJSONObject("identity"))
+   if(canonical(panelUploadBinding(identity))!=canonical(owner))throw PanelUploadPaused()
+   session=refreshed.put("backend",base)
+   withContext(Dispatchers.IO){panelSessions.write(session)}
+   panelIdentity=identity
+   send()
+  }
+ }
+ internal fun setPanelBackend(value:String){
+  if(panelLoginBusy)return
+  runCatching {val base=api.normalizeBase(value);require(safePanelBackend(base));database.put("companion.connection.v1",base);panelLoginError=null}
+   .onFailure {panelLoginError=text("Use an HTTPS address or the local USB backend.","Verwende HTTPS oder das lokale USB-Backend.")}
+ }
+ private fun panelFailure(e:Exception):String=when {
+  e.message=="different_panel_account"->text("Local data belongs to another panel account. Clear Companion app data before changing participant.","Die lokalen Daten gehören zu einem anderen Panelkonto. Lösche die App-Daten vor einem Kontowechsel.")
+  e is ApiHttpException&&e.status==401->text("Sign-in failed or session expired. Check your email and password and verify your panel account.","Anmeldung fehlgeschlagen oder Sitzung abgelaufen. Prüfe E-Mail, Passwort und die Bestätigung deines Panelkontos.")
+  e is ApiHttpException&&e.status==429->text("Too many attempts. Please wait a minute.","Zu viele Versuche. Bitte warte eine Minute.")
+  else->text("Unable to verify your panel account. Check the backend connection and try again.","Dein Panelkonto konnte nicht geprüft werden. Prüfe die Backend-Verbindung und versuche es erneut.")
+ }
  var result by mutableStateOf<JSONObject?>(null)
  var origin by mutableStateOf<Place?>(null)
  var planningLocationAttempted by mutableStateOf(false)
@@ -94,8 +251,8 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
  private val geocodingCache=linkedMapOf<String,Pair<Long,List<Place>>>()
  val de get()=locale=="de"
  fun text(en:String,de:String)=if(this.de)de else en
- fun refresh(){journeyPriorityOverrides=database.json("imiq.experimental.journey-priorities.v1")?.optJSONObject("overrides")?:JSONObject();journeyPriorityBasis=database.json("imiq.experimental.journey-priorities.v1")?.optString("basis");journeyPriorityConfirmedAt=database.json("imiq.experimental.journey-priorities.v1")?.optString("confirmed_at")?.takeUnless {it=="null"||it.isBlank()};revision++;ready=true;step=store.get(ONBOARDING)?.takeIf { it in listOf("identity","travel-kit","goals","valences","beliefs","passport") }?:"identity";ProspectiveLearning.resume(getApplication());LearnedPassportLearning.resume(getApplication())}
- fun companion()=store.json(COMPANION)?:store.json("imiq.experimental.companion-draft.v1")?:obj("name" to "","appearance" to "robot","palette" to "mint","version" to 1)
+ fun refresh(){journeyPriorityOverrides=database.json("imiq.experimental.journey-priorities.v1")?.optJSONObject("overrides")?:JSONObject();journeyPriorityBasis=database.json("imiq.experimental.journey-priorities.v1")?.optString("basis");journeyPriorityConfirmedAt=database.json("imiq.experimental.journey-priorities.v1")?.optString("confirmed_at")?.takeUnless {it=="null"||it.isBlank()};revision++;ready=true;step=store.get(ONBOARDING)?.takeIf { it in listOf("identity","travel-kit","goals","valences","beliefs","passport") }?:"identity";ProspectiveLearning.resume(getApplication());LearnedPassportLearning.resume(getApplication());startProfileUploads()}
+ fun companion()=imdilloPresentation(store.json(COMPANION)?:store.json("imiq.experimental.companion-draft.v1"))
  fun passport()=store.passport()
  fun profile()=passport()?.optJSONObject("response")?.optJSONObject("cognitive_passport")
  fun settings():JSONObject {
@@ -111,18 +268,37 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
  fun plan():JSONObject=proposedDailyPlan(store.json(dailyKey(today(),"draft"))?:store.json(dailyKey(today(),"saved")),passport(),today())
  fun saveWeeklyPriorities(values:JSONObject)=run {
   val previous=passport()?:error("Confirm your Passport first")
+  val uploadIdentity=panelIdentity?.copyJson();val hash=modelContractHash();val target=api.base()
   val weekly=explicitWeeklyReference(values)
   val response=api.call("/api/companion/goal-personalization/prepare",priorityRequest(previous,weekly,JSONObject(),null))
   val next=validatedPriorityPassport(previous,weekly,JSONObject(),null,response)
-  withContext(Dispatchers.IO){database.commitGoalPassport(previous,next)}
+  withContext(Dispatchers.IO){database.commitGoalPassport(previous,next){
+   database.queuePriorityUpload("weekly_reference_confirmation",previous,next,null,uploadIdentity,target,weekly.getString("confirmed_at"),hash)
+  }}
+  startPriorityUploads();startSearchUploads();startResultsUploads();startHotcoUploads()
   journeyPriorityOverrides=JSONObject();journeyPriorityBasis=null;journeyPriorityConfirmedAt=null
   database.remove("imiq.experimental.journey-priorities.v1")
   notice=text("Weekly priorities saved. Journey adjustments were reset.","Wochenprioritäten gespeichert. Reiseanpassungen zurückgesetzt.");revision++
  }
 
- fun goStep(next:String){store.put(ONBOARDING,next);step=next;error=null;pendingPassport=null;revision++}
+ fun goStep(next:String){store.put(ONBOARDING,next);step=next;error=null;pendingPassport=null;pendingQuestionnaireAttemptId=null;revision++}
+ private fun questionnaireClock()=QuestionnaireClock(now(),android.os.SystemClock.elapsedRealtime(),trips.boot())
+ internal fun questionnaireVisible(){
+  if(step !in listOf("travel-kit","goals","valences","beliefs","passport")||database.json(QUESTIONNAIRE_ATTEMPT)!=null)return
+  // A pre-existing incomplete questionnaire has no observed start; never backfill one.
+  val fresh=step=="travel-kit"&&(database.json("companion.passport-renewal.v1")!=null||
+   listOf("imiq.experimental.valences.v1","imiq.experimental.valences-draft.v1","imiq.experimental.adaptive-beliefs.v1","imiq.experimental.adaptive-profile.v1").all {database.json(it)==null}&&database.json(dailyKey(today(),"saved"))==null)
+  database.put(QUESTIONNAIRE_ATTEMPT,QuestionnaireTiming.begin("questionnaire-${UUID.randomUUID()}",questionnaireClock(),fresh))
+ }
+ private fun questionnaireAttempt():JSONObject=database.json(QUESTIONNAIRE_ATTEMPT)?:
+  QuestionnaireTiming.begin("questionnaire-${UUID.randomUUID()}",questionnaireClock(),false).also {database.put(QUESTIONNAIRE_ATTEMPT,it)}
  fun setLanguage(next:String){locale=next;store.put("imiq.experimental.language",next)}
  fun saveCompanion(name:String,appearance:String){require(name.trim().isNotEmpty());val item=obj("version" to 1,"name" to name.trim().take(24),"appearance" to appearance,"palette" to "mint");store.put(COMPANION,item);store.put("imiq.experimental.companion-draft.v1",item);revision++}
+ fun startMobilityProfile(){
+  // Leave legacy names/appearances and confirmed Passport evidence untouched.
+  if(store.json(COMPANION)==null&&store.json("imiq.experimental.companion-draft.v1")==null)saveCompanion("Imdillo","imdillo")
+  goStep("travel-kit")
+ }
  fun saveAvailability(value:JSONObject){store.put("imiq.experimental.availability.v1",obj("version" to 1,"answers" to value));revision++}
  fun mobilityHabits()=store.json("companion.mobility-habits.v1")?.optJSONObject("answers")?:obj(*modes.map {it to null}.toTypedArray())
  fun saveMobilityHabit(mode:String,habitual:Boolean){require(mode in modes);store.put("companion.mobility-habits.v1",obj("version" to 1,"updated_at" to now(),"answers" to mobilityHabits().copyJson().put(mode,habitual)));revision++}
@@ -134,6 +310,7 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
   saveAvailability(available);goStep("goals")
  }
  fun adjustGoal(key:String,delta:Int){require(key in goalKeys&&delta in listOf(-1,1));val p=plan();val points=p.getJSONObject("points");val next=points.optInt(key)+delta;if(next in 1..7){points.put(key,next);store.put(dailyKey(today(),"draft"),p);revision++}}
+ fun rateGoal(key:String,rating:Int){val next=editedDailyGoal(plan(),key,rating);store.put(dailyKey(today(),"draft"),next);revision++}
  fun saveGoals(){val p=plan();needImportanceRatings(p.getJSONObject("points"));p.put("confirmedAt",now()).put("timezone",java.time.ZoneId.systemDefault().id);store.put(dailyKey(today(),"saved"),p);store.remove(dailyKey(today(),"draft"));store.remove("imiq.experimental.adaptive-profile.v1");goStep("valences")}
  fun rateFeeling(mode:String,value:Int,index:Int){val answers=valences();answers.put(mode,value.coerceIn(-3,3));store.put("imiq.experimental.valences-draft.v1",obj("version" to 1,"index" to index,"answers" to answers));revision++}
  fun saveFeelings(){val answers=valences();require(modes.all { answers.opt(it) is Int&&answers.getInt(it) in -3..3 });store.put("imiq.experimental.valences.v1",obj("version" to 1,"index" to 0,"answers" to answers));goStep("beliefs");prepareBeliefs()}
@@ -156,35 +333,64 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
   }
  }
  fun persistBeliefs(){val start=beliefStart?:return;store.put("imiq.experimental.adaptive-beliefs.v1",obj("fingerprint" to fingerprint(),"start" to start,"answers" to beliefAnswers,"index" to beliefIndex));revision++}
- fun rateBelief(cell:String,rating:Int){beliefAnswers=beliefAnswers.copyJson().put(cell,rating.coerceIn(1,7));persistBeliefs()}
- fun beliefNext(){if(beliefIndex<(beliefStart?.objects("questions")?.lastIndex?:19)){beliefIndex++;persistBeliefs()}else run {
-  val start=beliefStart?:error("Missing questions");require(start.objects("questions").all { beliefAnswers.optInt(it.getString("cell_id")) in 1..7 })
+ fun rateBelief(cell:String,rating:Int){if(busy)return;beliefAnswers=beliefAnswers.copyJson().put(cell,rating.coerceIn(1,7));persistBeliefs()}
+ fun beliefNext(){if(busy)return;if(beliefIndex<(beliefStart?.objects("questions")?.lastIndex?:19)){beliefIndex++;persistBeliefs()}else run {
+  val start=beliefStart?:error("Missing questions");require(start.objects("questions").size==20&&start.objects("questions").all { val cell=it.getString("cell_id");beliefAnswers.opt(cell) is Int&&beliefAnswers.getInt(cell) in 1..7 })
   val initialFingerprint=fingerprint()
-  val completed=api.call("/api/companion/adaptive-passport/complete",obj("schema_version" to start.contractString("schema_version"),"start" to start,"answers" to beliefAnswers))
+  val submission=obj("schema_version" to start.contractString("schema_version"),"start" to start.copyJson(),"answers" to beliefAnswers.copyJson())
+  val source=obj("onboarding_request" to onboardingInputs(),"calibration_start_response" to start.copyJson(),"calibration_completion_request" to submission.copyJson())
+  val attempt=QuestionnaireTiming.complete(questionnaireAttempt(),canonical(source),questionnaireClock()).put("source",source)
+  database.put(QUESTIONNAIRE_ATTEMPT,attempt)
+  val completed=api.call("/api/companion/adaptive-passport/complete",submission)
   require(initialFingerprint==fingerprint()) { "Your answers changed. Review your goals and feelings." }
+  require(database.json(QUESTIONNAIRE_ATTEMPT)?.optString("questionnaire_attempt_id")==attempt.getString("questionnaire_attempt_id")) {"The questionnaire attempt changed"}
   require(completed.optString("stage")=="complete"&&completed.optBoolean("ready_for_hotco")) { "Invalid calibration completion" }
-  store.put("imiq.experimental.adaptive-profile.v1",obj("version" to 1,"fingerprint" to fingerprint(),"response" to completed));goStep("passport");createPassportInternal()
+  attempt.getJSONObject("source").put("calibration_completion_response",completed.copyJson());database.put(QUESTIONNAIRE_ATTEMPT,attempt)
+  store.put("imiq.experimental.adaptive-profile.v1",obj("version" to 1,"fingerprint" to fingerprint(),"response" to completed,
+   "questionnaire_attempt_id" to attempt.getString("questionnaire_attempt_id"),"questionnaire_submission_signature" to attempt.getString("submission_signature")))
+  createPassportInternal()
+  require(canonical(beliefAnswers)==canonical(submission.getJSONObject("answers"))) {"Your connections changed. Confirm your answers again."}
+  confirmPassport()
  }}
  private suspend fun createPassportInternal(){
   val completed=store.json("imiq.experimental.adaptive-profile.v1")?:error("Complete your twenty connections first")
   require(completed.optString("fingerprint")==fingerprint()) { "Your answers changed. Review your connections." }
   val available=availability();require(modes.all { available.opt(it) is Boolean }&&modes.any { available.optBoolean(it) })
   val initialFingerprint=fingerprint()
-  val value=api.call("/api/companion/adaptive-passport/bootstrap",obj("schema_version" to "hotco_5goals_bootstrap_v1","completed_passport" to completed.getJSONObject("response"),"availability" to available,"weekly_goals" to explicitWeeklyReference(needImportanceRatings(plan().getJSONObject("points")))))
+  val attempt=questionnaireAttempt()
+  if(attempt.has("submission_signature"))require(completed.optString("questionnaire_attempt_id")==attempt.getString("questionnaire_attempt_id")&&
+   completed.optString("questionnaire_submission_signature")==attempt.getString("submission_signature")) {"Complete the latest questionnaire submission first"}
+  val request=obj("schema_version" to "hotco_5goals_bootstrap_v1","completed_passport" to completed.getJSONObject("response"),"availability" to available,"weekly_goals" to explicitWeeklyReference(needImportanceRatings(plan().getJSONObject("points"))))
+  val value=api.call("/api/companion/adaptive-passport/bootstrap",request)
+  val responseReceivedAt=now()
   require(initialFingerprint==fingerprint()&&canonical(available)==canonical(availability())) { "Your answers changed. Create the Passport again." }
+  require(database.json(QUESTIONNAIRE_ATTEMPT)?.optString("questionnaire_attempt_id")==attempt.getString("questionnaire_attempt_id")) {"The questionnaire attempt changed"}
   val p=value.optJSONObject("cognitive_passport")?:error("Invalid Passport response")
   require(p.optContractString("schema_version")=="2.0"&&p.optJSONObject("profile")?.optJSONObject("beliefs")!=null)
+  val received=QuestionnaireTiming.received(attempt,responseReceivedAt)
+  val source=received.optJSONObject("source")?:JSONObject()
+  source.put("bootstrap_request",request.copyJson());received.put("source",source);database.put(QUESTIONNAIRE_ATTEMPT,received)
   pendingPassport=value
   pendingFingerprint=initialFingerprint
+  pendingQuestionnaireAttemptId=received.getString("questionnaire_attempt_id")
  }
- fun createPassport()=run { createPassportInternal() }
- fun confirmPassport(){
+ private fun confirmPassport(){
   try {
   val response=pendingPassport?:return;val p=plan();val available=availability();val feelings=obj("answers" to valences())
   require(pendingFingerprint==fingerprint()) { "Your answers changed. Create the Passport again." }
+  val attempt=questionnaireAttempt();require(pendingQuestionnaireAttemptId==attempt.getString("questionnaire_attempt_id")) {"Create the Passport again for this questionnaire"}
+  val confirmedAt=now();val measured=QuestionnaireTiming.confirmed(attempt,confirmedAt)
   val source=obj("plan" to p,"valences" to feelings,"availability" to available,"habitual_mobility" to (store.json("companion.mobility-habits.v1")?:JSONObject.NULL),"toleranceState" to obj("answers" to JSONObject()),"inputs" to obj("weekStart" to week()))
   val saved=obj("version" to 1,"fingerprint" to fingerprint(),"confirmedAt" to now(),"createdAt" to now(),"weekStart" to week(),"goalRatings" to p.getJSONObject("points"),"needsSource" to NEED_IMPORTANCE_SCALE,"conversion" to "rating_minus1_div6_v1","availability" to available,"sourceSnapshot" to source,"response" to response)
-  require(validPassport(saved));store.passport()?.let(store::archive);store.put(PASSPORT,saved);journeyPriorityOverrides=JSONObject();journeyPriorityBasis=null;journeyPriorityConfirmedAt=null;store.remove("imiq.experimental.journey-priorities.v1");store.remove("companion.passport-renewal.v1");pendingPassport=null;goStep("passport");tab="home"
+  saved.put("confirmedAt",confirmedAt).put("createdAt",confirmedAt)
+   .put("questionnaire_attempt_id",measured.getString("questionnaire_attempt_id"))
+   .put("timing",QuestionnaireTiming.snapshot(measured)).put("questionnaire_source",measured.optJSONObject("source")?.copyJson()?:JSONObject.NULL)
+  require(validPassport(saved))
+  val modelHash=getApplication<Application>().assets.open("companion-identity-v1.json").bufferedReader().use {
+   JSONObject(it.readText()).getJSONObject("current_contract_sha256").getString("contracts/hotco-signed-model-v1.json")}
+  val db=database.writableDatabase;db.beginTransaction()
+  try {database.passport()?.let(database::archive);database.put(PASSPORT,saved);database.put(QUESTIONNAIRE_ATTEMPT,measured);database.queueProfileUpload(saved,modelHash,api.base(),confirmedAt,panelIdentity);database.remove("companion.passport-renewal.v1");db.setTransactionSuccessful()}finally{db.endTransaction()}
+  journeyPriorityOverrides=JSONObject();journeyPriorityBasis=null;journeyPriorityConfirmedAt=null;store.remove("imiq.experimental.journey-priorities.v1");pendingPassport=null;goStep("passport");tab="home";notice=text("Your Passport is ready.","Dein Passport ist bereit.");startProfileUploads()
   }catch(e:Exception){error=e.message}
  }
  fun beginRenewal(){
@@ -192,10 +398,10 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
   val keys=store.storage();val answers=JSONObject()
   // Keep the current companion/kit prefilled, but restore them if the draft is cancelled.
   listOf(COMPANION,"imiq.experimental.companion-draft.v1","imiq.experimental.availability.v1","companion.mobility-habits.v1").forEach {key->answers.put(key,keys.opt(key)?:JSONObject.NULL)}
-  keys.keys().asSequence().filter { (it.startsWith("imiq.experimental.weekly-goals.v1.")||it.startsWith("imiq.experimental.daily-goals.v1."))||it in listOf(ONBOARDING,"imiq.experimental.valences.v1","imiq.experimental.valences-draft.v1","imiq.experimental.adaptive-beliefs.v1","imiq.experimental.adaptive-profile.v1") }.toList().forEach { key->answers.put(key,keys.getString(key));store.remove(key) }
+  keys.keys().asSequence().filter { (it.startsWith("imiq.experimental.weekly-goals.v1.")||it.startsWith("imiq.experimental.daily-goals.v1."))||it in listOf(QUESTIONNAIRE_ATTEMPT,ONBOARDING,"imiq.experimental.valences.v1","imiq.experimental.valences-draft.v1","imiq.experimental.adaptive-beliefs.v1","imiq.experimental.adaptive-profile.v1") }.toList().forEach { key->answers.put(key,keys.getString(key));store.remove(key) }
   store.put("companion.passport-renewal.v1",obj("version" to 1,"answers" to answers));tab="passport";goStep("identity")
  }
- fun cancelRenewal(){val answers=store.json("companion.passport-renewal.v1")?.optJSONObject("answers")?:return;val current=store.storage();current.keys().asSequence().filter { (it.startsWith("imiq.experimental.weekly-goals.v1.")||it.startsWith("imiq.experimental.daily-goals.v1."))||it in listOf(ONBOARDING,"imiq.experimental.valences.v1","imiq.experimental.valences-draft.v1","imiq.experimental.adaptive-beliefs.v1","imiq.experimental.adaptive-profile.v1") }.toList().forEach(store::remove);answers.keys().forEach { if(answers.isNull(it))store.remove(it)else store.put(it,answers.getString(it)) };store.remove("companion.passport-renewal.v1");goStep("passport");tab="home"}
+ fun cancelRenewal(){val answers=store.json("companion.passport-renewal.v1")?.optJSONObject("answers")?:return;val current=store.storage();current.keys().asSequence().filter { (it.startsWith("imiq.experimental.weekly-goals.v1.")||it.startsWith("imiq.experimental.daily-goals.v1."))||it in listOf(QUESTIONNAIRE_ATTEMPT,ONBOARDING,"imiq.experimental.valences.v1","imiq.experimental.valences-draft.v1","imiq.experimental.adaptive-beliefs.v1","imiq.experimental.adaptive-profile.v1") }.toList().forEach(store::remove);answers.keys().forEach { if(answers.isNull(it))store.remove(it)else store.put(it,answers.getString(it)) };store.remove("companion.passport-renewal.v1");goStep("passport");tab="home"}
  var originParkingId by mutableStateOf<String?>(null)
  var destinationParkingId by mutableStateOf<String?>(null)
  private var parkingReselect=false
@@ -270,6 +476,7 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
  }
  private fun searchInternal(confirmation:ConfirmedTripImportance)=run(routeSearch=true) {
   val previous=passport()?:error("Confirm your Passport first")
+  val uploadIdentity=panelIdentity?.copyJson();val hash=modelContractHash();val target=api.base()
   val weekly=weeklyGoalReference(previous)
   require(confirmation.contextKey==tripImportanceContext()) {"Trip or profile changed. Rate the goals again."}
   // Keep every explicit response, including those equal to the weekly reference.
@@ -295,9 +502,19 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
   val lineage=p.getJSONObject("lineage");val record=obj("version" to 1,"app_version" to BuildConfig.VERSION_NAME,"comfort_pilot_required" to true,"affect_pilot_required" to true,"goal_priorities_reference" to p.getJSONObject("goal_priorities").copyJson(),"recommendation_rule" to "signed-actions-unanimous-clear-mode-v3","search_id" to id,"created_at" to now(),"status" to "pending","request" to request,"places" to obj("origin" to start.json(),"destination" to stop.json()),"passport_reference" to obj("passport_id" to lineage.getString("passport_id"),"revision" to lineage.getInt("revision"),"fingerprint" to active.getString("fingerprint"),"confirmed_at" to active.optString("confirmedAt")),"confirmed_snapshot" to active,"choices" to JSONArray())
   record.put("situated_importance_required",true).put("situated_importance",confirmation.observation.copyJson())
   val forecastSource=withContext(Dispatchers.IO){database.archive(previous);database.archive(active);runCatching {freezeProspectiveSource(database,active)}.getOrElse {record.put("prospective_source_failure",it.message?.take(300));null}}
-  withContext(Dispatchers.IO){database.archive(active);database.saveRecord(record)};routeProfileSnapshot=id to p;historyId=id;result=null;chosenId=null;reflection=null
+  withContext(Dispatchers.IO){
+   val db=database.writableDatabase;db.beginTransaction()
+   try {database.archive(active);database.saveRecord(record)
+    database.queuePriorityUpload("predecision_ema",previous,active,record,uploadIdentity,target,record.getString("created_at"),hash)
+    db.setTransactionSuccessful()
+   }finally{db.endTransaction()}
+  }
+  startPriorityUploads();routeProfileSnapshot=id to p;historyId=id;result=null;chosenId=null;reflection=null
+  var failureStage="routing_request"
   try {
    val response=api.call("/api/companion/routed-contextual-deliberation",request,180000)
+   record.put("result_received_at",now())
+   failureStage="response_validation"
    require(response.optContractString("schema_version")=="routed-contextual-deliberation-v1"&&response.optString("search_id")==id&&response.optJSONObject("routing")?.optJSONArray("routes")!=null&&response.optJSONArray("route_audit")!=null) { "Invalid route response" }
    require(modes.all { response.optJSONObject("journey_availability")?.opt(it)==available.opt(it) }) { "Availability changed in response" }
    val simulationVersion=response.optJSONObject("contextual_deliberation")?.optContractString("model_version")
@@ -306,12 +523,17 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
    require(simulationVersion==null||readoutVersion=="signed-actions-v1") {"The backend needs the direct signed output update."}
    record.put("action_readout_version",readoutVersion?:JSONObject.NULL)
    record.put("simulation_model_version",simulationVersion?:JSONObject.NULL).put("input_passport_model_version",p.opt("version")?:JSONObject.NULL)
+   failureStage="recommendation"
    val recommendation=withContext(Dispatchers.Default){recommendation(response)}
    withContext(Dispatchers.IO){
     record.put("status","complete").put("completed_at",now()).put("result",response).put("recommendation",recommendation.json())
+    failureStage="forecast"
     forecastBeforeChoice(record,forecastSource,{api.call("/api/companion/longitudinal/prospective/forecast",it,30000)})
-    database.saveRecord(record)
+    failureStage="local_commit"
+    record.put("search_termination",obj("status" to "complete","failure" to null))
+    database.commitSearchTerminal(record,uploadIdentity,target)
    }
+   startSearchUploads();startResultsUploads();startHotcoUploads()
    result=response;activeMode=if(keepTransit)"pt"else if(keepCar)"car"else recommendation.winner?:cards(response).firstOrNull()?.mode?:"walk";selectedId=if(keepTransit)cards(response).firstOrNull {it.mode=="pt"&&it.route.optBoolean("available")}?.id else if(keepCar)cards(response).firstOrNull {it.mode=="car"}?.id else recommendation.primary?.id;routeView="alternatives"
    if(keepTransit&&selectedId==null)error=text("That departure can no longer be planned. Open the stop to refresh its itineraries.","Diese Abfahrt kann nicht mehr geplant werden. Öffne die Haltestelle, um Verbindungen zu aktualisieren.")
    // Results are durable and ready to interact with. Auxiliary persistence
@@ -321,7 +543,8 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
     runCatching {withContext(Dispatchers.IO){val recent=JSONArray();(listOf(start,stop)+recents()).distinctBy { it.lat to it.lon }.take(6).forEach {recent.put(it.json())};database.put("companion.recent-places.v1",recent)}}
      .onFailure {android.util.Log.w("CompanionRouteSearch","Recent places could not be saved",it)}
    };revision++
-  }catch(e:Exception){withContext(NonCancellable+Dispatchers.IO){record.put("status","failed").put("completed_at",now()).put("failure",if(e is CancellationException)"cancelled" else e.message);database.saveRecord(record)};throw e}
+  }catch(e:Exception){withContext(NonCancellable+Dispatchers.IO){record.put("status","failed").put("completed_at",now()).put("failure",if(e is CancellationException)"cancelled" else e.message)
+   record.put("search_termination",SearchUpload.termination(failureStage,e));database.commitSearchTerminal(record,uploadIdentity,target)};startSearchUploads();throw e}
  }
  fun recents():List<Place> { val raw=store.get("companion.recent-places.v1")?:return emptyList();return runCatching { val parsed=JSONArray(raw);parsed.objects().mapNotNull(Place::fromJson) }.getOrDefault(emptyList()) }
  fun choose(card:RouteCard,onSelected:((String,Int)->Unit)?=null)=run {
@@ -405,7 +628,7 @@ class CompanionModel @JvmOverloads constructor(app:Application,databaseName:Stri
   experienceSaved=true;revision++
  }
  fun clearJourneyHistory(){runCatching {store.clearHistory();revision++;result=null;historyId=null;tripSearchId=null;tripId=null;notice=text("History cleared","Verlauf gelöscht")}.onFailure {error=it.message}}
- fun resetLocalData(){runCatching {store.reset();refresh();tab="home";result=null;historyId=null;tripSearchId=null;tripId=null}.onFailure {error=it.message}}
+ fun resetLocalData(){runCatching {profileUploadJob?.cancel();priorityUploadJob?.cancel();searchUploadJob?.cancel();resultsUploadJob?.cancel();hotcoUploadJob?.cancel();store.reset();refresh();tab="home";result=null;historyId=null;tripSearchId=null;tripId=null}.onFailure {error=it.message}}
  var manualTripSaving by mutableStateOf(false)
   private set
  private var preparedTripRecord:Pair<String,JSONObject>?=null

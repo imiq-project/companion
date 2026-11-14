@@ -31,7 +31,7 @@ import org.json.JSONObject
 /** Small artwork, full touch targets and spoken labels. */
 @Composable fun RouteIcon(kind:String,label:String,active:Boolean=false,enabled:Boolean=true,recommended:Boolean=false,animated:Boolean=false,onClick:()->Unit) {
  val mode=kind in listOf("walk","bike","car","pt")
- val upper=if(recommended)Color(0xFF665336)else if(active)Color(0xFF355448)else PanelRaised
+ val upper=if(recommended)CompanionPalette.Rose else if(active)CompanionPalette.Lavender else PanelRaised
  Surface(modifier=if(recommended)Modifier.recommendationGlow(animated,circular=mode)else Modifier,color=if(active)Mint.copy(alpha=.18f)else Panel,shape=if(mode)CircleShape else MaterialTheme.shapes.medium,shadowElevation=if(mode)4.dp else 0.dp,border=if(mode)BorderStroke(1.dp,if(recommended)Gold.copy(alpha=.7f)else if(active)Mint.copy(alpha=.7f)else Edge.copy(alpha=.6f))else null) {
   Box(if(mode)Modifier.background(Brush.verticalGradient(listOf(upper,Panel,Ink)))else Modifier) {
    IconButton(onClick,Modifier.size(48.dp).semantics {contentDescription=label;selected=active},enabled=enabled) {PixelIcon(kind,Modifier.size(24.dp))}
@@ -51,7 +51,6 @@ import org.json.JSONObject
   try {value=withContext(Dispatchers.IO){historyId?.let(store::recordForUi) to model.trips.active()}}
   catch(e:CancellationException){throw e}catch(e:Exception){model.error=e.message}
  }
- var details by remember(result,preview) {mutableStateOf(false)}
  var time by remember {mutableLongStateOf(System.currentTimeMillis())}
  LaunchedEffect(result){while(true){time=System.currentTimeMillis();delay(15000)}}
  val all=remember(result){cards(result)}
@@ -61,7 +60,7 @@ import org.json.JSONObject
  val chosen=all.find {it.id==model.chosenId}
  val current=if(preview)chosen else all.find {it.id==model.selectedId}?:all.firstOrNull {it.mode==model.activeMode}?:all.firstOrNull()
  LaunchedEffect(current?.id){if(current!=null){model.selectedId=current.id;model.activeMode=current.mode}}
- BackHandler {if(details)details=false else if(preview)model.routeView="alternatives" else model.routeView="search"}
+ BackHandler {if(preview)model.routeView="alternatives" else model.routeView="search"}
  Column(Modifier.fillMaxSize()) {
   Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal=10.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.CenterVertically) {
    RouteIcon("home",model.text("Home","Start")){model.tab="home"}
@@ -74,7 +73,6 @@ import org.json.JSONObject
    }}
    if(preview)RouteIcon("home","Companion"){model.tab="passport"}
   }
-  JourneyWeatherStrip(model,all)
   JourneyPrioritySummary(model,result)
   ModelEvaluationStrip(model,assessment,current,time,preview)
   Box(Modifier.weight(1f).fillMaxWidth()) {NativeJourneyMap(model,compact=true,selectedOnly=preview)}
@@ -82,7 +80,7 @@ import org.json.JSONObject
    Column {
     if(current!=null)ClimateRouteSummary(model,current.route,onRefresh=if(preview)null else ({model.search()}))
     if(!preview&&current?.mode=="pt")TransitOptionStrip(model,all.filter {it.mode=="pt"},current,time)
-    if(current!=null)RouteSummaryPanel(model,current,time,current.id==favourite?.id,onDetails={details=true},simplified=true) {
+    if(current!=null)RouteSummaryPanel(model,current,time,current.id==favourite?.id,onDetails={},simplified=true,showDetails=false) {
      if(!preview)RoutePlayButton(model.text("Start journey","Reise starten"),enabled=current.route.optBoolean("available")&&!current.expired(time)&&!model.busy){
       model.choose(current,onSelected=onTrackStart)
      }
@@ -108,9 +106,6 @@ import org.json.JSONObject
    }
   }
  }
- if(details)ModalBottomSheet(onDismissRequest={details=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink) {
-  Box(Modifier.fillMaxWidth().fillMaxHeight(.88f)) {AlternativesScreen(model)}
- }
 }
 
 /** Arrival ordering is a timetable comparison, independent of HOTCO's choice of mode. */
@@ -127,7 +122,7 @@ import org.json.JSONObject
     val arrival=clock(card.route.optJSONObject("transit")?.number("end_time_ms"))
     val walk=boardingAccess(card)?.second?.let {"${countdownMinutes(it)} min "+model.text("walk","zu Fuß")}?:model.text("Walk unknown","Fußweg unbekannt")
     val active=current.id==card.id
-    val accent=listOf(Color(0xFF9FE4CE),Color(0xFFC5B8FF),Color(0xFFFFBC88))[i]
+    val accent=listOf(CompanionPalette.Primary,CompanionPalette.Burgundy,CompanionPalette.Text)[i]
     val rank=model.text(listOf("First","Second","Third")[i],listOf("Erste","Zweite","Dritte")[i])
     Surface(Modifier.weight(1f).heightIn(min=72.dp).clickable {model.selectedId=card.id;model.activeMode="pt"}.semantics(mergeDescendants=true) {selected=active;contentDescription="$rank · $line · ${model.text("Arrival","Ankunft")} $arrival · $walk"},shape=RoundedCornerShape(8.dp),color=Panel,border=BorderStroke(if(active)2.dp else 1.dp,accent.copy(alpha=if(active)1f else .55f))) {
      Column(Modifier.background(Brush.verticalGradient(listOf(accent.copy(alpha=if(active).20f else .09f),Panel))).padding(6.dp),verticalArrangement=Arrangement.spacedBy(3.dp)) {

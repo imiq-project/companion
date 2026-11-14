@@ -2,7 +2,7 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id(
 android {
  namespace = "de.ovgu.imiq.companion"
  compileSdk = 36
- defaultConfig { applicationId = "de.ovgu.imiq.companion"; minSdk = 26; targetSdk = 36; versionCode = 148; versionName = "0.4.137" }
+ defaultConfig { applicationId = "de.ovgu.imiq.companion"; minSdk = 26; targetSdk = 36; versionCode = 168; versionName = "0.4.157" }
  buildFeatures { compose = true; buildConfig = true }
  sourceSets.getByName("main").assets.srcDir("../../contracts")
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

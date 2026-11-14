@@ -83,7 +83,7 @@ private val companionKinds=listOf("robot","explorer","creature","naturalist")
      "robot"->{
       val x=if(animated)((t*24f)%760f)-60f else 90f;val y=h*.3f
       drawRoundRect(Ink,Offset(x,y),Size(28f,10f),CornerRadius(3f));drawRect(Mint,Offset(x+5,y+2),Size(16f,3f));drawLine(Gold.copy(alpha=.65f),Offset(x-8,y+8),Offset(x,y+8),2f)
-      repeat(5){i->val glow=if(animated).18f+.1f*sin(t*.6f+i)else .22f;drawRect(Color(0xFF81DCF6).copy(alpha=glow),Offset(45f+i*125f,h*.2f+i%2*13f),Size(7f,15f))}
+      repeat(5){i->val glow=if(animated).18f+.1f*sin(t*.6f+i)else .22f;drawRect(CompanionPalette.Blue.copy(alpha=glow),Offset(45f+i*125f,h*.2f+i%2*13f),Size(7f,15f))}
      }
      "explorer"->{
       listOf(92f,548f).forEachIndexed {i,x->

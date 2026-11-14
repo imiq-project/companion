@@ -56,7 +56,7 @@ private fun feelingName(model:CompanionModel,rating:Int?):String=when(rating) {
 @Composable private fun ValenceSprite(rating:Int?,modifier:Modifier=Modifier) {
  Canvas(modifier) {
   scale(minOf(size.width,size.height)/64f,pivot=Offset.Zero) {
-   val tone=when {rating==null->Edge;rating<0->Color(0xFFB99AE4);rating>0->Mint;else->Gold}
+   val tone=when {rating==null->Edge;rating<0->CompanionPalette.Burgundy;rating>0->Mint;else->MutedText}
    drawCircle(Ink,24f,Offset(32f,27f))
    drawCircle(tone,21f,Offset(32f,27f))
    drawCircle(Pale.copy(alpha=.5f),3f,Offset(19f,14f))

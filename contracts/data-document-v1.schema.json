@@ -1,0 +1,580 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "collection",
+    "object_id",
+    "study_id",
+    "participant_id",
+    "data_class",
+    "created_at",
+    "consent_event_ids",
+    "body"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "companion-data-document-v1-draft"
+    },
+    "collection": {
+      "enum": [
+        "participants",
+        "consent_events",
+        "profile_versions",
+        "search_revisions",
+        "journey_revisions",
+        "gps_chunks"
+      ]
+    },
+    "object_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+    },
+    "study_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+    },
+    "participant_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+    },
+    "data_class": {
+      "enum": [
+        "synthetic",
+        "participant"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "consent_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+      },
+      "minItems": 0,
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "body": {
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companion.local/contracts/data-document-v1.schema.json",
+  "title": "Companion central data document v1 — design draft, not an active API",
+  "$defs": {
+    "participants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enrolled_at"
+      ],
+      "properties": {
+        "enrolled_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+        }
+      }
+    },
+    "consent_events": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_at",
+        "notice_version",
+        "decision",
+        "scopes",
+        "supersedes_event_id"
+      ],
+      "properties": {
+        "event_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "notice_version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "decision": {
+          "enum": [
+            "grant",
+            "withdraw"
+          ]
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "profile_transfer",
+              "search_transfer",
+              "journey_transfer",
+              "location_transfer",
+              "gps_recording",
+              "gps_transfer"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true
+        },
+        "supersedes_event_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "profile_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "previous_revision_id",
+        "input_schema_version",
+        "questionnaire",
+        "passport",
+        "model_contract_sha256"
+      ],
+      "properties": {
+        "profile_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "previous_revision_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input_schema_version": {
+          "const": "hotco_ct_input_5goals_1.0"
+        },
+        "questionnaire": {
+          "type": "object"
+        },
+        "passport": {
+          "type": "object"
+        },
+        "model_contract_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "search_revisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "search_id",
+        "previous_revision_id",
+        "profile_revision_id",
+        "record"
+      ],
+      "properties": {
+        "search_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "previous_revision_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile_revision_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "record": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "search_id",
+            "created_at",
+            "completed_at",
+            "status",
+            "request",
+            "result",
+            "passport_reference",
+            "choices",
+            "recommendation",
+            "places"
+          ],
+          "properties": {
+            "version": {
+              "const": 1
+            },
+            "search_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+            },
+            "completed_at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+            },
+            "status": {
+              "const": "complete"
+            },
+            "request": {
+              "type": "object"
+            },
+            "result": {
+              "type": "object"
+            },
+            "passport_reference": {
+              "type": "object"
+            },
+            "confirmed_snapshot": {
+              "type": "object"
+            },
+            "choices": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "minItems": 0,
+              "maxItems": 100
+            },
+            "recommendation": {
+              "anyOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "places": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "journey_revisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "journey_id",
+        "previous_revision_id",
+        "search_revision_id",
+        "profile_revision_id",
+        "gps_chunk_ids",
+        "total_gps_points",
+        "journey"
+      ],
+      "properties": {
+        "journey_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "previous_revision_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "search_revision_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "profile_revision_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "gps_chunk_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+          },
+          "minItems": 1,
+          "maxItems": 40,
+          "uniqueItems": true
+        },
+        "total_gps_points": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000
+        },
+        "journey": {
+          "allOf": [
+            {
+              "$ref": "journey-v1.schema.json"
+            },
+            {
+              "properties": {
+                "status": {
+                  "const": "confirmed"
+                },
+                "capture_mode": {
+                  "const": "tracked"
+                },
+                "tracking": {
+                  "properties": {
+                    "points": {
+                      "maxItems": 0
+                    }
+                  }
+                },
+                "experience": {
+                  "type": "object"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "gps_chunks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "journey_revision_id",
+        "chunk_index",
+        "point_offset",
+        "points"
+      ],
+      "properties": {
+        "journey_revision_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "chunk_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 39
+        },
+        "point_offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 19999
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "journey-v1.schema.json#/$defs/point"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "upload_id",
+        "study_id",
+        "participant_id",
+        "data_class",
+        "created_at",
+        "mode",
+        "items"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "companion-upload-manifest-v1-draft"
+        },
+        "upload_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "study_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "participant_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+        },
+        "data_class": {
+          "enum": [
+            "synthetic",
+            "participant"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "mode": {
+          "const": "manual"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "object_id",
+              "collection",
+              "sha256",
+              "byte_length"
+            ],
+            "properties": {
+              "object_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"
+              },
+              "collection": {
+                "enum": [
+                  "profile_versions",
+                  "search_revisions",
+                  "journey_revisions",
+                  "gps_chunks"
+                ]
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "byte_length": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4194304
+              }
+            }
+          },
+          "minItems": 1,
+          "maxItems": 512
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "participants"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/participants"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "consent_events"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/consent_events"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "profile_versions"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/profile_versions"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "search_revisions"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/search_revisions"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "journey_revisions"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/journey_revisions"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "gps_chunks"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/gps_chunks"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModelProvider
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowInsetsCompat
 import org.json.JSONObject
 
 class MainActivity:ComponentActivity() {
@@ -35,7 +36,7 @@ class MainActivity:ComponentActivity() {
  }
  override fun onCreate(savedInstanceState:Bundle?) {
   super.onCreate(savedInstanceState);enableEdgeToEdge();model=ViewModelProvider(this)[CompanionModel::class.java]
-  WindowInsetsControllerCompat(window,window.decorView).apply { isAppearanceLightStatusBars=false;isAppearanceLightNavigationBars=false }
+  applyFullscreen()
   setContent {
    val tracking=rememberAndroidLocationAccess(model,allowWithoutLocation=true,onReady={
     val pending=pendingTracking;pendingTracking=null
@@ -74,7 +75,15 @@ class MainActivity:ComponentActivity() {
   }
  }
  private fun locate(){requestLocation(this,model)}
- override fun onResume(){super.onResume();if(::model.isInitialized&&model.ready){runCatching {model.trips.recover()}.onFailure {model.error=it.message };openActiveIntent(intent)}}
+ private fun applyFullscreen(){
+  WindowInsetsControllerCompat(window,window.decorView).apply {
+   isAppearanceLightStatusBars=true;isAppearanceLightNavigationBars=true
+   systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+   hide(WindowInsetsCompat.Type.systemBars())
+  }
+ }
+ override fun onWindowFocusChanged(hasFocus:Boolean){super.onWindowFocusChanged(hasFocus);if(hasFocus)applyFullscreen()}
+ override fun onResume(){super.onResume();applyFullscreen();if(::model.isInitialized&&model.ready){runCatching {model.trips.recover()}.onFailure {model.error=it.message };openActiveIntent(intent)}}
  override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);openActiveIntent(intent)}
  private fun openActiveIntent(intent:Intent?){
   if(intent?.action=="companion.OPEN_ACTIVE_TRIP"){if(model.store.json(ACTIVE_PLAYBACK)!=null)model.openPlayback()else model.trips.active()?.let {model.openTrip(it.first.getString("search_id"),it.second.getString("journey_id"))};intent.action=null}

@@ -50,7 +50,7 @@ private val bitmapCache=object:android.util.LruCache<String,ImageBitmap>(32*1024
 /** Pixel medals share the app's sprite palette; only this small canvas animates. */
 @Composable fun TransitRankSprite(rank:Int,animated:Boolean,modifier:Modifier=Modifier) {
  val clock=sceneClock(animated)
- val metal=when(rank){1->Gold;2->Color(0xFFC5D5E7);else->Color(0xFFD99668)}
+ val metal=when(rank){1->Gold;2->CompanionPalette.Blue;else->CompanionPalette.Lavender}
  val digit=when(rank){1->listOf("010","110","010","010","111");2->listOf("111","001","111","100","111");else->listOf("111","001","111","001","111")}
  Canvas(modifier.clearAndSetSemantics {}) {
   val t=clock.value
@@ -59,7 +59,7 @@ private val bitmapCache=object:android.util.LruCache<String,ImageBitmap>(32*1024
   scale(minOf(size.width,size.height)/24f,pivot=Offset.Zero) {
    translate(0f,bob) {
     fun pixel(x:Float,y:Float,w:Float,h:Float,color:Color)=drawRect(color,Offset(x,y),Size(w,h))
-    pixel(6f,15f,5f,6f,Color(0xFF6866AD));pixel(13f,15f,5f,6f,Color(0xFF6866AD))
+    pixel(6f,15f,5f,6f,CompanionPalette.Primary);pixel(13f,15f,5f,6f,CompanionPalette.Primary)
     pixel(7f,16f,3f,3f,Mint);pixel(14f,16f,3f,3f,Mint)
     pixel(5f,6f,14f,11f,Ink);pixel(7f,4f,10f,15f,Ink)
     pixel(6f,7f,12f,9f,metal);pixel(8f,5f,8f,13f,metal)
@@ -122,8 +122,8 @@ private val bitmapCache=object:android.util.LruCache<String,ImageBitmap>(32*1024
     emblem(emblemKind)
     if(animated&&kind=="rain") {
      val y=43f+(t*12f)%14f
-     drawLine(Color(0xFF96D8E9),Offset(22f,y),Offset(19f,y+5f),3f,StrokeCap.Round)
-     drawLine(Color(0xFF96D8E9),Offset(43f,y-5f),Offset(40f,y),3f,StrokeCap.Round)
+     drawLine(CompanionPalette.Blue,Offset(22f,y),Offset(19f,y+5f),3f,StrokeCap.Round)
+     drawLine(CompanionPalette.Blue,Offset(43f,y-5f),Offset(40f,y),3f,StrokeCap.Round)
     }
    }
   }
@@ -138,11 +138,11 @@ private fun DrawScope.emblem(kind:String) {
  fun line(x:Float,y:Float,a:Float,b:Float,c:Color=Gold,w:Float=4f)=drawLine(c,Offset(x,y),Offset(a,b),w,StrokeCap.Round)
  fun box(x:Float,y:Float,w:Float,h:Float,c:Color=Mint,r:Float=6f){drawRoundRect(Ink,Offset(x-2,y-2),Size(w+4,h+4),CornerRadius(r+2));drawRoundRect(Brush.verticalGradient(listOf(c,c.copy(alpha=.72f))),Offset(x,y),Size(w,h),CornerRadius(r));line(x+4,y+3,x+w-4,y+3,Pale.copy(alpha=.6f),2f)}
  fun ring(x:Float,y:Float,r:Float,c:Color=Gold){drawCircle(Ink,r+2,Offset(x,y));drawCircle(c,r,Offset(x,y),style=Stroke(4f))}
- fun leaf(){val p=Path().apply{moveTo(16f,45f);cubicTo(6f,19f,37f,8f,51f,10f);cubicTo(53f,40f,31f,55f,16f,45f);close()};drawPath(p,Ink,style=Stroke(6f));drawPath(p,Brush.linearGradient(listOf(Mint,Color(0xFF348C79))));line(14f,52f,42f,21f,Gold,3f);line(27f,37f,24f,23f,Pale,2f)}
+ fun leaf(){val p=Path().apply{moveTo(16f,45f);cubicTo(6f,19f,37f,8f,51f,10f);cubicTo(53f,40f,31f,55f,16f,45f);close()};drawPath(p,Ink,style=Stroke(6f));drawPath(p,Brush.linearGradient(listOf(Mint,CompanionPalette.Primary)));line(14f,52f,42f,21f,Gold,3f);line(27f,37f,24f,23f,Pale,2f)}
  when(kind){
- "temperature"->{box(26f,8f,12f,36f,Pale,6f);drawCircle(Ink,13f,Offset(32f,47f));drawCircle(Color(0xFFEA8284),10f,Offset(32f,47f));line(32f,22f,32f,45f,Color(0xFFEA8284),5f);line(43f,17f,50f,17f);line(43f,27f,48f,27f)}
- "rain"->{drawCircle(Ink,13f,Offset(20f,27f));drawCircle(Ink,18f,Offset(34f,23f));drawCircle(Ink,12f,Offset(47f,29f));box(10f,24f,45f,15f,Color(0xFF96D8E9),8f);drawCircle(Pale,10f,Offset(20f,26f));drawCircle(Pale,14f,Offset(34f,23f));line(24f,45f,19f,54f,Mint,3f);line(44f,45f,39f,54f,Mint,3f)}
- "humidity"->{val drop=Path().apply{moveTo(28f,7f);cubicTo(23f,18f,9f,29f,9f,40f);cubicTo(9f,60f,47f,60f,47f,40f);cubicTo(47f,29f,33f,18f,28f,7f);close()};drawPath(drop,Ink,style=Stroke(6f));drawPath(drop,Brush.verticalGradient(listOf(Pale,Color(0xFF57ABC9))));ring(23f,34f,3f,Ink);ring(35f,46f,3f,Ink);line(22f,48f,36f,32f,Ink,3f)}
+ "temperature"->{box(26f,8f,12f,36f,Pale,6f);drawCircle(Ink,13f,Offset(32f,47f));drawCircle(CompanionPalette.Burgundy,10f,Offset(32f,47f));line(32f,22f,32f,45f,CompanionPalette.Burgundy,5f);line(43f,17f,50f,17f);line(43f,27f,48f,27f)}
+ "rain"->{drawCircle(Ink,13f,Offset(20f,27f));drawCircle(Ink,18f,Offset(34f,23f));drawCircle(Ink,12f,Offset(47f,29f));box(10f,24f,45f,15f,CompanionPalette.Blue,8f);drawCircle(Pale,10f,Offset(20f,26f));drawCircle(Pale,14f,Offset(34f,23f));line(24f,45f,19f,54f,Mint,3f);line(44f,45f,39f,54f,Mint,3f)}
+ "humidity"->{val drop=Path().apply{moveTo(28f,7f);cubicTo(23f,18f,9f,29f,9f,40f);cubicTo(9f,60f,47f,60f,47f,40f);cubicTo(47f,29f,33f,18f,28f,7f);close()};drawPath(drop,Ink,style=Stroke(6f));drawPath(drop,Brush.verticalGradient(listOf(Pale,CompanionPalette.Blue)));ring(23f,34f,3f,Ink);ring(35f,46f,3f,Ink);line(22f,48f,36f,32f,Ink,3f)}
  "windSpeed"->{line(8f,24f,42f,24f,Mint);ring(45f,18f,7f,Mint);line(12f,36f,54f,36f,Pale);line(8f,48f,35f,48f,Gold);ring(39f,52f,6f,Gold)}
  "windGust"->{line(15f,8f,15f,57f,Pale,4f);line(9f,58f,23f,58f,Gold,3f);val sock=Path().apply{moveTo(17f,12f);lineTo(56f,21f);lineTo(56f,32f);lineTo(17f,38f);close()};drawPath(sock,Ink,style=Stroke(5f));drawPath(sock,Gold);line(28f,16f,28f,35f,Pale,5f);line(43f,20f,43f,32f,Pale,4f);line(33f,46f,57f,46f,Mint,3f);line(49f,41f,57f,46f,Mint,3f);line(49f,51f,57f,46f,Mint,3f)}
  "uvIndex","lightIntensity","weather"->{drawCircle(Ink,16f,Offset(32f,32f));drawCircle(Gold,12f,Offset(32f,32f));for(i in 0..7){val angle=i*PI/4;line((32+20*cos(angle)).toFloat(),(32+20*sin(angle)).toFloat(),(32+27*cos(angle)).toFloat(),(32+27*sin(angle)).toFloat(),Gold,3f)}}
@@ -153,8 +153,8 @@ private fun DrawScope.emblem(kind:String) {
  "previous"->{line(40f,13f,21f,32f,Pale,6f);line(21f,32f,40f,51f,Pale,6f)}
  "next"->{line(24f,13f,43f,32f,Pale,6f);line(43f,32f,24f,51f,Pale,6f)}
  "home","sun"->{box(15f,28f,34f,29f);val roof=Path().apply{moveTo(9f,31f);lineTo(32f,10f);lineTo(55f,31f);close()};drawPath(roof,Ink,style=Stroke(6f));drawPath(roof,Gold);box(27f,39f,10f,18f,Panel,2f);box(40f,35f,6f,8f,Pale,1f)}
- "passport","star"->{box(14f,8f,38f,48f,Color(0xFF5FA89F));line(20f,10f,20f,54f,Gold,3f);ring(37f,29f,9f);line(29f,45f,45f,45f,Pale,2f)}
- "menu","clock"->{box(10f,17f,44f,37f,Color(0xFFB68B68));box(23f,10f,18f,10f,Gold,4f);box(13f,20f,38f,14f,Mint);box(28f,29f,8f,13f,Gold,2f)}
+ "passport","star"->{box(14f,8f,38f,48f,CompanionPalette.Primary);line(20f,10f,20f,54f,Gold,3f);ring(37f,29f,9f);line(29f,45f,45f,45f,Pale,2f)}
+ "menu","clock"->{box(10f,17f,44f,37f,CompanionPalette.Burgundy);box(23f,10f,18f,10f,Gold,4f);box(13f,20f,38f,14f,Mint);box(28f,29f,8f,13f,Gold,2f)}
  "search"->{ring(26f,26f,16f,Mint);line(38f,38f,54f,54f,Gold,7f);line(19f,20f,26f,17f,Pale,2f)}
  "recent"->{ring(33f,33f,22f,Mint);drawCircle(Panel,16f,Offset(33f,33f));line(33f,19f,33f,33f);line(33f,33f,44f,39f);line(8f,13f,8f,27f,Gold);line(8f,27f,22f,27f,Gold);line(8f,27f,18f,15f,Gold,3f)}
  "location"->{val p=Path().apply{moveTo(32f,58f);cubicTo(23f,45f,10f,31f,14f,20f);cubicTo(20f,0f,44f,0f,50f,20f);cubicTo(54f,31f,41f,45f,32f,58f);close()};drawPath(p,Ink,style=Stroke(6f));drawPath(p,Mint);drawCircle(Panel,8f,Offset(32f,23f));drawCircle(Gold,4f,Offset(32f,23f))}
@@ -163,10 +163,10 @@ private fun DrawScope.emblem(kind:String) {
  "travel","map"->{ring(32f,32f,25f,Mint);val p=Path().apply{moveTo(42f,15f);lineTo(37f,39f);lineTo(22f,49f);lineTo(27f,25f);close()};drawPath(p,Gold);line(32f,32f,42f,15f,Pale,2f)}
  "env"->leaf()
  "bike"->{ring(15f,45f,12f,Mint);ring(49f,45f,12f,Mint);line(15f,45f,26f,25f);line(26f,25f,37f,45f);line(37f,45f,15f,45f);line(26f,25f,41f,25f);line(41f,25f,49f,45f);line(40f,25f,40f,16f);line(39f,16f,48f,16f);line(20f,22f,30f,22f,Pale)}
- "pt"->{box(8f,13f,48f,38f);box(14f,19f,36f,17f,Color(0xFF6CA6C2));line(9f,41f,55f,41f,Gold,4f);drawCircle(Gold,3f,Offset(15f,45f));drawCircle(Gold,3f,Offset(49f,45f));ring(18f,54f,5f,Edge);ring(46f,54f,5f,Edge);line(32f,12f,38f,5f);line(38f,5f,22f,5f)}
- "car"->{val p=Path().apply{moveTo(7f,35f);lineTo(16f,32f);lineTo(24f,17f);quadraticTo(32f,13f,43f,18f);lineTo(51f,32f);lineTo(57f,36f);quadraticTo(60f,43f,56f,50f);lineTo(9f,50f);quadraticTo(4f,44f,7f,35f);close()};drawPath(p,Ink,style=Stroke(6f));drawPath(p,Color(0xFFEA8284));box(24f,21f,18f,11f,Color(0xFF96D8E9),3f);line(33f,21f,33f,33f,Ink,2f);line(7f,40f,14f,40f,Gold,3f);line(50f,40f,57f,40f,Gold,3f);ring(17f,51f,7f,Edge);ring(47f,51f,7f,Edge)}
+ "pt"->{box(8f,13f,48f,38f);box(14f,19f,36f,17f,CompanionPalette.Blue);line(9f,41f,55f,41f,Gold,4f);drawCircle(Gold,3f,Offset(15f,45f));drawCircle(Gold,3f,Offset(49f,45f));ring(18f,54f,5f,Edge);ring(46f,54f,5f,Edge);line(32f,12f,38f,5f);line(38f,5f,22f,5f)}
+ "car"->{val p=Path().apply{moveTo(7f,35f);lineTo(16f,32f);lineTo(24f,17f);quadraticTo(32f,13f,43f,18f);lineTo(51f,32f);lineTo(57f,36f);quadraticTo(60f,43f,56f,50f);lineTo(9f,50f);quadraticTo(4f,44f,7f,35f);close()};drawPath(p,Ink,style=Stroke(6f));drawPath(p,CompanionPalette.Burgundy);box(24f,21f,18f,11f,CompanionPalette.Blue,3f);line(33f,21f,33f,33f,Ink,2f);line(7f,40f,14f,40f,Gold,3f);line(50f,40f,57f,40f,Gold,3f);ring(17f,51f,7f,Edge);ring(47f,51f,7f,Edge)}
  "walk","health_activity"->{box(13f,15f,15f,26f,Mint);box(12f,38f,27f,13f,Gold);box(37f,7f,13f,24f,Mint);box(36f,29f,23f,12f,Gold);line(14f,53f,38f,53f,Pale,2f)}
- "cost"->{box(13f,21f,38f,34f,Color(0xFFB68B68),14f);box(22f,13f,20f,11f,Mint);ring(32f,38f,11f);line(32f,30f,32f,46f,Pale,2f)}
+ "cost"->{box(13f,21f,38f,34f,CompanionPalette.Burgundy,14f);box(22f,13f,20f,11f,Mint);ring(32f,38f,11f);line(32f,30f,32f,46f,Pale,2f)}
  "time"->{ring(32f,32f,24f,Mint);drawCircle(Panel,18f,Offset(32f,32f));line(32f,16f,32f,32f);line(32f,32f,44f,39f)}
  "comfort_physical"->{box(12f,25f,40f,28f,Mint,10f);box(17f,12f,30f,24f,Gold,10f);line(14f,56f,14f,60f,Edge);line(50f,56f,50f,60f,Edge)}
  "crowding"->{listOf(14f,50f).forEach{x->drawCircle(Mint,7f,Offset(x,17f));box(x-9,28f,18f,24f,Mint)};line(27f,38f,37f,38f);line(27f,38f,31f,33f);line(37f,38f,33f,43f)}
@@ -175,6 +175,7 @@ private fun DrawScope.emblem(kind:String) {
 }
 
 @Composable fun CompanionSprite(appearance:String,modifier:Modifier=Modifier.size(90.dp),animated:Boolean=true,talking:Boolean=false,expression:String="neutral",transport:String?=null,portrait:Boolean=false) {
+ if(appearance=="imdillo"){ImdilloIllustration(modifier,description="Imdillo");return}
  if(transport!=null){TransportSprite(appearance,transport,animated,modifier);return}
  val safe=appearance.takeIf {it in listOf("robot","explorer","creature","naturalist")}?:"robot"
  val image=art("$safe-sheet-v2.png");val time=sceneClock(animated)
@@ -202,10 +203,11 @@ private fun DrawScope.emblem(kind:String) {
 @Composable fun TravelScene(appearance:String,mode:String,animated:Boolean,positive:Int?=null,background:String="hbf") {
  SceneFrame(animated,garden=background=="citadel"){
   TransportSprite(appearance,mode,animated,Modifier.align(Alignment.BottomCenter).padding(bottom=8.dp).size(when(mode){"pt"->176.dp;"car"->160.dp;"bike"->132.dp;else->108.dp},if(mode=="pt"||mode=="car")110.dp else 122.dp))
-  if(positive!=null&&positive!=0)Text(if(positive>0)"♥"else"♡",color=if(positive>0)Color(0xFFFF9CAE)else Pale,modifier=Modifier.align(Alignment.TopEnd).padding(12.dp),fontSize=24.sp)
+  if(positive!=null&&positive!=0)Text(if(positive>0)"♥"else"♡",color=if(positive>0)CompanionPalette.Primary else Pale,modifier=Modifier.align(Alignment.TopEnd).padding(12.dp),fontSize=24.sp)
  }
 }
 @Composable internal fun TransportSprite(appearance:String,mode:String,animated:Boolean,modifier:Modifier,seconds:Float?=null,smoothFrames:Boolean=false,reportedValence:Int?=null) {
+ if(appearance=="imdillo"){ImdilloIllustration(modifier,description="Imdillo");return}
  val safe=appearance.takeIf {it in listOf("robot","explorer","creature","naturalist")}?:"robot"
  val context=LocalContext.current;val image=art("$safe-transport-v2.png");val time=if(seconds==null)sceneClock(animated)else rememberUpdatedState(seconds)
  val metadata=remember(safe){context.assets.open("art/jrpg/transport-atlas.json").bufferedReader().use{JSONObject(it.readText()).getJSONObject(safe)}}

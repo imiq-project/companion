@@ -38,6 +38,15 @@ Preserve those files when redistributing the associated resources, and preserve
 the map's interactive attribution to OpenFreeMap, OpenMapTiles and OpenStreetMap.
 Fonts and their accompanying license files must also retain their original terms.
 
+## Barlow typeface
+
+The Android interface bundles Barlow Regular, SemiBold, Bold and Italic,
+the IMIQ project's house typeface. These fonts are distributed under the
+SIL Open Font License 1.1. Copyright and complete license text are retained in
+`frontend/app/src/main/assets/licenses/LICENSE.barlow.txt`.
+Sources: [Barlow in the Google Fonts repository](https://github.com/google/fonts/tree/main/ofl/barlow).
+The bundled fonts are available offline; the app does not download fonts at runtime.
+
 ## Climate factors
 
 `contracts/climate-factors-v1.json` preserves original UBA row identifiers, values,

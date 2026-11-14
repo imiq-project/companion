@@ -176,7 +176,7 @@ import org.json.JSONObject
       model.returnAfterExperience()
      }catch(e:CancellationException){throw e}catch(e:Exception){failure=e.message}
      finally{saving=false}
-    }}},enabled=loaded&&!saving&&missing==null,modifier=Modifier.fillMaxWidth().heightIn(min=52.dp),colors=ButtonDefaults.buttonColors(containerColor=Mint,contentColor=Ink)) {
+    }}},enabled=loaded&&!saving&&missing==null,modifier=Modifier.fillMaxWidth().heightIn(min=52.dp),colors=ButtonDefaults.buttonColors(containerColor=Mint,contentColor=MaterialTheme.colorScheme.onPrimary)) {
      Text(if(saving)model.text("Saving…","Wird gespeichert…")else model.text("Save experience","Erfahrung speichern"),style=MaterialTheme.typography.titleMedium)
     }
     TextButton({later()},enabled=!saving,modifier=Modifier.fillMaxWidth(),contentPadding=PaddingValues(0.dp)){Text(model.text("Later · keep draft","Später · Entwurf behalten"),style=MaterialTheme.typography.bodySmall)}

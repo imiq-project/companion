@@ -102,7 +102,7 @@ class Store(private val context:Context,val databaseName:String="companion-nativ
  fun json(key:String):JSONObject? = runCatching { get(key)?.let(::JSONObject) }.getOrNull()
  fun put(key:String,value:Any) { writableDatabase.execSQL("INSERT OR REPLACE INTO kv VALUES (?,?)",arrayOf(key,value.toString())) }
  fun remove(key:String) { writableDatabase.execSQL("DELETE FROM kv WHERE key=?",arrayOf(key)) }
- fun storage():JSONObject = snapshot {db->val keys=db.rawQuery("SELECT key FROM kv",null).use {c->buildList {while(c.moveToNext())add(c.getString(0))}};JSONObject().apply {keys.forEach {key->put(key,this@Store.get(key))}}}
+ fun storage():JSONObject = snapshot {db->val keys=db.rawQuery("SELECT key FROM kv WHERE key NOT LIKE ? AND key NOT LIKE ?",arrayOf("$RESULTS_UPLOAD_PREFIX%","$HOTCO_UPLOAD_PREFIX%")).use {c->buildList {while(c.moveToNext())add(c.getString(0))}};JSONObject().apply {keys.forEach {key->put(key,this@Store.get(key))}}}
  fun passport():JSONObject? = json(PASSPORT)?.takeIf { validPassport(it) }
  fun confirmedSnapshot(record:JSONObject):JSONObject? {
   record.optJSONObject("confirmed_snapshot")?.let { return it }
@@ -119,6 +119,9 @@ class Store(private val context:Context,val databaseName:String="companion-nativ
   // Project in SQLite: no multi-megabyte result or forecast reaches CursorWindow/JVM.
   val query="""SELECT json_object('history_preview',json('true'),'search_id',id,
    'created_at',created,'status',json_extract(value,'$.status'),'places',json_extract(value,'$.places'),
+   'recommendation',json_object('state',json_extract(value,'$.recommendation.state'),
+    'winner',json_extract(value,'$.recommendation.winner'),
+    'primary_route_id',json_extract(value,'$.recommendation.primary_route_id')),
    'choices',json((SELECT json_group_array(json_object('mode_key',json_extract(c.value,'$.mode_key'),
     'chosen_at',json_extract(c.value,'$.chosen_at'),'choice_event_id',json_extract(c.value,'$.choice_event_id'),
     'routing_rank',json_extract(c.value,'$.routing_rank'),'route_id',json_extract(c.value,'$.route_id')))
@@ -243,7 +246,7 @@ class Store(private val context:Context,val databaseName:String="companion-nativ
   val db=writableDatabase;db.beginTransaction();try {val record=record(id)?:error("Journey not found");block(record);saveRecord(record);db.setTransactionSuccessful()}finally{db.endTransaction()}
  }
  fun export():JSONObject {
-  val captured=snapshot {Triple(storage().apply {remove(ACTIVE_TRIP)},history(),now())}
+  val captured=snapshot {Triple(QuestionnaireTiming.portableStorage(storage()).apply {remove(ACTIVE_TRIP)},history(),now())}
   // Index and check the captured values outside the transaction: GPS writes can resume.
   val (values,records,at)=captured
   validateLearnedStorage(values)
@@ -253,7 +256,7 @@ class Store(private val context:Context,val databaseName:String="companion-nativ
  fun importBackup(backup:JSONObject,replace:Boolean=true) {
   require(json(ACTIVE_TRIP)==null) { "Finish the active journey before importing" }
   require(backup.optString("schema")=="companion-backup-v1") { "Unsupported backup" }
-  val values=backup.getJSONObject("storage"); val records=backup.getJSONArray("simulations").objects()
+  val values=QuestionnaireTiming.portableStorage(backup.getJSONObject("storage")); val records=backup.getJSONArray("simulations").objects()
   validateLearnedStorage(values)
   validateVehicleStorage(values)
   val index=longitudinalIndex(values,records)
@@ -280,6 +283,9 @@ class Store(private val context:Context,val databaseName:String="companion-nativ
     }
    }
    values.keys().forEach { key->put(key,values.getString(key)) }
+   remove(QUESTIONNAIRE_ATTEMPT)
+   readableDatabase.rawQuery("SELECT key FROM kv WHERE key LIKE ? OR key LIKE ? OR key LIKE ? OR key LIKE ? OR key LIKE ?",arrayOf("$PROFILE_UPLOAD_PREFIX%","$PRIORITY_UPLOAD_PREFIX%","$SEARCH_UPLOAD_PREFIX%","$RESULTS_UPLOAD_PREFIX%","$HOTCO_UPLOAD_PREFIX%"))
+    .use {c->buildList {while(c.moveToNext())add(c.getString(0))}}.forEach(::remove)
    vehicleArchives.keys().asSequence().filter {it.startsWith("$VEHICLE_PROFILE.archive.")}.forEach {key->put(key,vehicleArchives.getString(key))}
    validateLearnedStorage(storage())
    if(previous!=null&&previous.toString()!=get(PASSPORT))archive(previous)
@@ -311,12 +317,12 @@ class Store(private val context:Context,val databaseName:String="companion-nativ
    db.setTransactionSuccessful()
   }finally{db.endTransaction()}
  }
- fun commitGoalPassport(expected:JSONObject,next:JSONObject) {
+ fun commitGoalPassport(expected:JSONObject,next:JSONObject,queue:(()->Unit)?=null) {
   require(validPassport(next)&&!next.getJSONObject("response").getJSONObject("cognitive_passport").has("focal_goals"))
   val db=writableDatabase;db.beginTransaction()
   try {
    require(canonical(passport())==canonical(expected.copyJson())) {"Your Passport changed. Review your priorities again."}
-   archive(expected);archive(next);put(PASSPORT,next);db.setTransactionSuccessful()
+   archive(expected);archive(next);put(PASSPORT,next);queue?.invoke();db.setTransactionSuccessful()
   }finally{db.endTransaction()}
  }
  fun reset() { require(json(ACTIVE_TRIP)==null) { "Finish the active journey first" };val db=writableDatabase;db.beginTransaction();try { db.execSQL("DELETE FROM searches");db.execSQL("DELETE FROM kv");db.setTransactionSuccessful() } finally { db.endTransaction() } }
@@ -389,20 +395,30 @@ class Api(private val store:Store) {
  suspend fun call(path:String,payload:JSONObject?=null,timeout:Int=20000):JSONObject = withContext(Dispatchers.IO) {
   apiJsonRequest(base()+path,payload,timeout)
  }
+ internal suspend fun callEncoded(path:String,body:String,timeout:Int=20000,expectedBase:String=base()):JSONObject = withContext(Dispatchers.IO) {
+  require(base()==expectedBase) {"Backend target changed"}
+  apiJsonRequest(expectedBase+path,timeout=timeout,rawBody=body.toByteArray(Charsets.UTF_8))
+ }
 }
 
+internal class ApiHttpException(val status:Int,message:String):IllegalStateException(message)
 /** Retry only reads; a POST may already have been applied when its reply is lost. */
-internal suspend fun apiJsonRequest(address:String,payload:JSONObject?=null,timeout:Int=20000):JSONObject {
+internal suspend fun apiJsonRequest(address:String,payload:JSONObject?=null,timeout:Int=20000,rawBody:ByteArray?=null,bearer:String?=null,participantId:String?=null):JSONObject {
+ val posting=payload!=null||rawBody!=null
  var lastFailure:java.io.IOException?=null
- repeat(if(payload==null)2 else 1) { attempt->
+ repeat(if(posting)1 else 2) { attempt->
   kotlinx.coroutines.currentCoroutineContext().ensureActive()
   val conn=URL(address).openConnection() as HttpURLConnection
   try {
    conn.connectTimeout=15000;conn.readTimeout=timeout;conn.setRequestProperty("Accept","application/json")
+   if(URL(address).path=="/api/companion/routed-contextual-deliberation"){conn.setRequestProperty("X-Companion-Results-Projection","companion-search-results-v1");conn.setRequestProperty("X-Companion-Hotco-Archive","companion-hotco-transfer-v1")}
+   conn.instanceFollowRedirects=false
+   if(bearer!=null){require(bearer.isNotBlank()&&bearer.all {it.code in 33..126});conn.setRequestProperty("Authorization","Bearer $bearer")}
+   if(participantId!=null){require(participantId.matches(Regex("[0-9a-f]{64}")));conn.setRequestProperty("X-Companion-Participant-ID",participantId)}
    // Avoid reusing sockets across USB bridge interruptions in Android's OkHttp transport.
    conn.setRequestProperty("Connection","close")
-   if(payload!=null){
-    val (body,compressed)=researchRequestBody(address,payload)
+   if(posting){
+    val (body,compressed)=if(rawBody!=null)rawBody to false else researchRequestBody(address,payload!!)
     conn.requestMethod="POST";conn.doOutput=true;conn.setRequestProperty("Content-Type","application/json")
     if(compressed)conn.setRequestProperty("Content-Encoding","gzip")
     // Streaming prevents HttpURLConnection from transparently replaying a POST after EOF.
@@ -412,13 +428,13 @@ internal suspend fun apiJsonRequest(address:String,payload:JSONObject?=null,time
    val status=conn.responseCode;val text=(if(status in 200..299)conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
    kotlinx.coroutines.currentCoroutineContext().ensureActive()
    val data=runCatching { JSONObject(text) }.getOrNull()
-   if(status !in 200..299)throw IllegalStateException(data?.optString("message")?.takeIf { it.isNotEmpty() }?:"Server error $status")
+   if(status !in 200..299)throw ApiHttpException(status,data?.optString("message")?.takeIf { it.isNotEmpty() }?:"Server error $status")
    return data?:throw IllegalStateException("Invalid server response")
   } catch(e:java.io.IOException) {
    kotlinx.coroutines.currentCoroutineContext().ensureActive()
    lastFailure=e
   } finally { conn.disconnect() }
-  if(payload==null&&attempt==0)kotlinx.coroutines.delay(250)
+  if(!posting&&attempt==0)kotlinx.coroutines.delay(250)
  }
  throw java.io.IOException("The connection to the backend was interrupted. Check the connection and try again. If using USB, keep the phone connected.",lastFailure)
 }

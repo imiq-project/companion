@@ -119,7 +119,7 @@ internal fun phoneHeadings(context:Context,rotation:()->Int)=callbackFlow<PhoneH
   if(!center.x.isFinite()||!center.y.isFinite())return@Canvas
   val radius=56.dp.toPx()
   val halfAngle=if(sample.accuracy==SensorManager.SENSOR_STATUS_ACCURACY_LOW)42f else 26f
-  val blue=Color(0xFF188AE8)
+  val blue=CompanionPalette.Primary
   drawArc(Brush.radialGradient(listOf(blue.copy(alpha=.40f),blue.copy(alpha=.04f),Color.Transparent),center,radius),
    angle-90-halfAngle,halfAngle*2,true,topLeft=center-Offset(radius,radius),size=Size(radius*2,radius*2))
   rotate(angle,center) {

@@ -26,6 +26,19 @@ import kotlin.math.*
 import org.json.JSONObject
 
 @Composable internal fun ValenceWorld(appearance:String,mode:String,rating:Int?,animated:Boolean,phase:Float,de:Boolean,onPrevious:()->Unit,onNext:()->Unit,showModeNavigation:Boolean=true) {
+ if(appearance=="imdillo"){
+  Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally){
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween){
+    if(showModeNavigation)TextButton(onPrevious,Modifier.size(48.dp)){Text("←",Modifier.semantics {contentDescription=if(de)"Vorheriges Verkehrsmittel"else"Previous mode"})}
+    ImdilloIllustration(Modifier.size(112.dp,152.dp))
+    if(showModeNavigation)TextButton(onNext,Modifier.size(48.dp)){Text("→",Modifier.semantics {contentDescription=if(de)"Nächstes Verkehrsmittel"else"Next mode"})}
+   }
+   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    PixelIcon(mode,Modifier.size(26.dp));Text(modeName(mode,de),color=Pale)
+   }
+  }
+  return
+ }
  val safe=appearance.takeIf {it in listOf("robot","naturalist","explorer","creature")}?:"robot"
  val background=art("valence-$mode-background-v1.png")
  val sheet=art("valence-$safe-emotions-v1.png")
@@ -70,7 +83,7 @@ import org.json.JSONObject
    val ground=size.height*pose.ground
    val wobble=if(animated)sin(clock*if(emotion<0)5f else 2.4f)*intense*(1f+boost)else 0f
    val y=ground-if(emotion>0)abs(wobble)*1.8.dp.toPx()else 0f
-   val tone=if(emotion<0)Color(0xFFD5B2F0)else Color(0xFFFF6C94)
+   val tone=if(emotion<0)CompanionPalette.Burgundy else CompanionPalette.Primary
    if(rating!=null&&rating!=0)drawOval(tone.copy(alpha=.12f*intense),Offset(x-characterWidth*.55f,ground-3.dp.toPx()),Size(characterWidth*1.1f,6.dp.toPx()))
    fun poseFrame(column:Int,alpha:Float) {
     val rect=atlas.getJSONArray("rows").getJSONArray(row).getJSONArray(column)
@@ -107,8 +120,8 @@ import org.json.JSONObject
      drawAnimeHeart(center,radius,tone.copy(alpha=alpha),broken=rating<0)
      if(rating<0) {
       val smoke=Offset(x+(i-2)*4.dp.toPx(),headY-4.dp.toPx()-p*24.dp.toPx())
-      drawCircle(Color(0xFFE3DCEB).copy(alpha=alpha*.65f),radius*(.45f+p*.7f),smoke)
-      if(abs(rating)>=2)drawLine(Color(0xFFCA7CBE).copy(alpha=alpha),center+Offset(8.dp.toPx(),0f),center+Offset(8.dp.toPx(),6.dp.toPx()),1.2.dp.toPx())
+      drawCircle(CompanionPalette.Lavender.copy(alpha=alpha*.65f),radius*(.45f+p*.7f),smoke)
+      if(abs(rating)>=2)drawLine(CompanionPalette.Burgundy.copy(alpha=alpha),center+Offset(8.dp.toPx(),0f),center+Offset(8.dp.toPx(),6.dp.toPx()),1.2.dp.toPx())
      }
     }
    }

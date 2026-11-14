@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Companion 06B signed lossless HOTCO envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "data_class", "search_id", "hotco_revision_id", "results_reference", "backend_generated_at", "passport_input_sha256", "packet", "key_id", "signature", "app_version", "response_received_at"],
+  "properties": {
+    "schema_version": {"const": "companion-hotco-transfer-v1"},
+    "data_class": {"enum": ["synthetic", "participant"]},
+    "search_id": {"type": "string", "minLength": 1, "maxLength": 240},
+    "hotco_revision_id": {"type": "string", "pattern": "^hotco-[0-9a-f]{64}$"},
+    "results_reference": {"type": "object", "additionalProperties": false, "required": ["results_revision_id"], "properties": {"results_revision_id": {"type": "string", "pattern": "^search-results-[0-9a-f]{64}$"}}},
+    "backend_generated_at": {"type": "string", "maxLength": 64},
+    "response_received_at": {"type": "string", "maxLength": 64},
+    "app_version": {"type": "string", "minLength": 1, "maxLength": 48},
+    "passport_input_sha256": {"$ref": "#/$defs/hash"},
+    "key_id": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+    "signature": {"$ref": "#/$defs/hash"},
+    "packet": {
+      "type": "object", "additionalProperties": false,
+      "required": ["codec", "raw_sha256", "compressed_sha256", "raw_bytes", "compressed_bytes", "data_base64"],
+      "properties": {
+        "codec": {"const": "gzip-json-utf8-v1"},
+        "raw_sha256": {"$ref": "#/$defs/hash"},
+        "compressed_sha256": {"$ref": "#/$defs/hash"},
+        "raw_bytes": {"type": "integer", "minimum": 1, "maximum": 134217728},
+        "compressed_bytes": {"type": "integer", "minimum": 1, "maximum": 33554432},
+        "data_base64": {"type": "string", "maxLength": 33554432}
+      }
+    }
+  },
+  "$defs": {"hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

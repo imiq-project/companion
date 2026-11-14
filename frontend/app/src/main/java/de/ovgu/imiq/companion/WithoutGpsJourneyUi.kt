@@ -36,7 +36,6 @@ internal fun routePlaybackPosition(route:MapRoute?,fraction:Double):Pair<GeoPoin
  val saved=record
  var tick by remember {mutableLongStateOf(SystemClock.elapsedRealtime())}
  LaunchedEffect(lifecycle){lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED){while(true){tick=SystemClock.elapsedRealtime();delay(250)}}}
- BackHandler {model.tab="home"}
  if(saved==null){CircularProgressIndicator();return}
  val choice=saved.objects("choices").getOrNull(selection.second)?:return
  val card=cards(saved.optJSONObject("result")).find {it.id=="${choice.optInt("routing_rank")}-${choice.optString("mode_key")}"}
@@ -48,14 +47,11 @@ internal fun routePlaybackPosition(route:MapRoute?,fraction:Double):Pair<GeoPoin
  val fraction=JourneyPlaybackClock.progress(state,tick,model.trips.boot())
  val running=state.optBoolean("running")&&fraction<1
  fun action(value:String){TrackingService.action(model.getApplication(),value)}
- Column(Modifier.fillMaxSize()) {
-  Box(Modifier.weight(1f)){NativeJourneyMap(model,tripRecord=saved,selectedOnly=true,compact=true,playbackFraction=fraction)}
-  Surface(color=Panel){
-   if(card!=null)RouteSummaryPanel(model,card,System.currentTimeMillis(),false,onDetails={model.finishPlayback()},elapsed="%02d:%02d".format(elapsed.toInt()/60,elapsed.toInt()%60),controls=true,statusLabel=model.text("Route playback · No GPS","Routenwiedergabe · Ohne GPS"),onCancel={model.cancelPlayback()}) {
-    if(model.manualTripSaving)CircularProgressIndicator(Modifier.size(32.dp),color=Mint,strokeWidth=2.dp)
-    else if(running&&fraction<1)RoutePauseButton(model.text("Pause journey","Reise pausieren")){action(TrackingService.PAUSE)}
-    else RoutePlayButton(model.text("Resume journey","Reise fortsetzen"),enabled=fraction<1){action(TrackingService.RESUME)}
-   }
-  }
+ NavigationJourneyLayout(model,saved,card,navigationElapsed(elapsed),null,
+  NavigationGuidance(if(running)NavigationSignal.PLAYBACK else NavigationSignal.PAUSED),pending=model.manualTripSaving,
+  canResume=fraction<1,keepAwake=running,isPlayback=true,
+  onPauseResume={action(if(running)TrackingService.PAUSE else TrackingService.RESUME)},
+  onFinish={model.finishPlayback()},onCancel={model.cancelPlayback()},onMinimize={model.tab="home"}) {viewport->
+   NativeJourneyMap(model,tripRecord=saved,selectedOnly=true,compact=true,playbackFraction=fraction,navigation=viewport)
  }
 }

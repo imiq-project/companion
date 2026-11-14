@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companion.local/contracts/questionnaire-profile-v1",
+  "title": "Companion block 03 — synthetic Atlas integration v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "data_class", "status", "profile_revision_id", "previous_revision_id", "questionnaire_attempt_id", "timing", "source", "android_profile_snapshot", "model_contract_sha256"],
+  "properties": {
+    "schema_version": {"const": "companion-questionnaire-profile-v1-draft"},
+    "data_class": {"enum": ["synthetic", "participant"]},
+    "status": {"const": "confirmed"},
+    "profile_revision_id": {"$ref": "#/$defs/id"},
+    "previous_revision_id": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+    "questionnaire_attempt_id": {"$ref": "#/$defs/id"},
+    "timing": {
+      "type": "object", "additionalProperties": false,
+      "required": ["questionnaire_started_at", "questionnaire_completed_at", "questionnaire_elapsed_seconds", "questionnaire_timing_status", "profile_response_received_at", "profile_confirmed_at"],
+      "properties": {
+        "questionnaire_started_at": {"$ref": "#/$defs/nullable_time"},
+        "questionnaire_completed_at": {"$ref": "#/$defs/nullable_time"},
+        "questionnaire_elapsed_seconds": {"type": ["number", "null"], "minimum": 0},
+        "questionnaire_timing_status": {"enum": ["measured", "unavailable", "illustrative"]},
+        "profile_response_received_at": {"type": "string", "format": "date-time"},
+        "profile_confirmed_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["onboarding_request", "calibration_start_response", "calibration_completion_request", "calibration_completion_response", "bootstrap_request"],
+      "properties": {
+        "onboarding_request": {"type": "object"},
+        "calibration_start_response": {"type": "object"},
+        "calibration_completion_request": {"type": "object"},
+        "calibration_completion_response": {"type": "object"},
+        "bootstrap_request": {"type": "object"}
+      }
+    },
+    "android_profile_snapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "fingerprint", "confirmedAt", "createdAt", "weekStart", "goalRatings", "needsSource", "conversion", "availability", "sourceSnapshot", "response"],
+      "properties": {
+        "version": {"const": 1}, "fingerprint": {"type": "string"},
+        "confirmedAt": {"type": "string", "format": "date-time"},
+        "createdAt": {"type": "string", "format": "date-time"},
+        "weekStart": {"type": "string", "format": "date"},
+        "goalRatings": {"type": "object"}, "needsSource": {"const": "ordinal_importance_1_7"},
+        "conversion": {"const": "rating_minus1_div6_v1"}, "availability": {"type": "object"},
+        "sourceSnapshot": {"type": "object"}, "response": {"type": "object"},
+        "questionnaire_attempt_id": {"$ref": "#/$defs/id"},
+        "timing": {"type": "object"}, "questionnaire_source": {"type": "object"}
+      }
+    },
+    "model_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "example_provenance": {"type": "object"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"},
+    "nullable_time": {"type": ["string", "null"], "format": "date-time"}
+  }
+}

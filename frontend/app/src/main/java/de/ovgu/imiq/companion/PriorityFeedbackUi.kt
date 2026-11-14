@@ -27,6 +27,8 @@ import kotlin.math.*
 
 /** The established avatar with a nod/thumb or a head shake/crossed arms. */
 @Composable internal fun PriorityReactionAvatar(appearance:String,direction:Int,phase:Float,de:Boolean,modifier:Modifier) {
+ // The project mascot never approves/disapproves a participant's answers.
+ if(appearance=="imdillo"){ImdilloIllustration(modifier);return}
  val safe=appearance.takeIf {it in listOf("robot","explorer","creature","naturalist")}?:"robot"
  val image=art("$safe-sheet-v2.png")
  val reacting=phase<1f&&direction!=0
@@ -40,7 +42,7 @@ import kotlin.math.*
   translate((size.width-side)/2,(size.height-side)/2){
    if(reacting){
     val pulse=sin(phase*PI).toFloat().coerceAtLeast(0f)
-    val tone=if(direction>0)Gold else Color(0xFFD7A0FF)
+    val tone=if(direction>0)Mint else CompanionPalette.Burgundy
     drawCircle(tone.copy(alpha=.18f*pulse),side*.46f,Offset(side/2,side/2))
     drawCircle(tone.copy(alpha=.7f*pulse),side*.44f,Offset(side/2,side/2),style=Stroke(1.dp.toPx()))
    }
@@ -49,7 +51,7 @@ import kotlin.math.*
     drawImage(image,IntOffset(col*cell,row*h),IntSize(cell,h),IntOffset.Zero,IntSize(side.roundToInt(),side.roundToInt()),filterQuality=FilterQuality.Medium)
     if(reacting){
      scale(side/64f,pivot=Offset.Zero){
-      val sleeve=when(safe){"naturalist"->Color(0xFF9A304A);"explorer"->Color(0xFF328C90);"creature"->Color(0xFFAE69CA);else->Mint}
+      val sleeve=when(safe){"naturalist"->CompanionPalette.Burgundy;"explorer"->CompanionPalette.Blue;"creature"->CompanionPalette.Primary;else->Mint}
       val hand=when(safe){"naturalist","explorer"->Color(0xFFFFCA8D);"creature"->Color(0xFFC9E783);else->Mint}
       fun arm(a:Offset,b:Offset){drawLine(Ink,a,b,8f,StrokeCap.Round);drawLine(sleeve,a,b,5.5f,StrokeCap.Round)}
       if(direction<0){
@@ -77,7 +79,7 @@ import kotlin.math.*
 /** Each pet follows the same interpolated endpoint used to draw its goal bar. */
 @Composable internal fun PriorityPetBar(appearance:String,value:Int,direction:Int,phase:Float,animated:Boolean,title:String,de:Boolean,modifier:Modifier=Modifier) {
  val pet=when(appearance){"naturalist"->"dogs";"explorer"->"spider";"creature"->"spirit";else->"drone"}
- val meta=introMetadata(pet);val image=art(meta.getString("file"))
+ val meta=companionSpriteMetadata(pet);val image=art(meta.getString("file"))
  val progress by animateFloatAsState(((value-1)/6f).coerceIn(0f,1f),tween(if(animated)650 else 0),label="Priority bar")
  Canvas(modifier.fillMaxWidth().height(26.dp).semantics {
   contentDescription=if(value==0){if(de)"$title: Noch nicht bewertet"else"$title: Not rated"}else if(de)"$title: $value von 7"else"$title: $value of 7"
@@ -85,7 +87,7 @@ import kotlin.math.*
  }){
   val reacting=phase<1f&&direction!=0
   val pulse=if(reacting)sin(phase*PI).toFloat().coerceAtLeast(0f)else 0f
-  val tone=if(reacting&&direction<0)Color(0xFFD7A0FF)else Mint
+  val tone=if(reacting&&direction<0)CompanionPalette.Burgundy else Mint
   val radius=12.dp.toPx();val start=radius;val end=(size.width-radius).coerceAtLeast(start)
   val x=start+(end-start)*progress;val y=size.height*.66f
   drawLine(Edge.copy(alpha=.4f),Offset(start,y),Offset(end,y),3.dp.toPx(),StrokeCap.Round)

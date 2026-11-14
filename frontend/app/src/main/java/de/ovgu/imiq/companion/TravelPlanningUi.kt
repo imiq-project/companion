@@ -41,6 +41,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.activity.compose.BackHandler
 
 import androidx.lifecycle.Lifecycle
 
@@ -110,7 +114,7 @@ internal fun selectedMapPlace(point:GeoPoint,nearbyAddress:String?,de:Boolean):P
 
 
 
-@Composable internal fun TravelPlanningMap(model:CompanionModel,originDraft:MutableState<String>,targetOrigin:Boolean,onTargetChange:(Boolean)->Unit,locationRequest:Int,modifier:Modifier=Modifier,showSelector:Boolean=true,allowAutomaticOrigin:Boolean=true){
+@Composable internal fun TravelPlanningMap(model:CompanionModel,originDraft:MutableState<String>,targetOrigin:Boolean,onTargetChange:(Boolean)->Unit,locationRequest:Int,modifier:Modifier=Modifier,showSelector:Boolean=true,allowAutomaticOrigin:Boolean=true,searchInset:Dp=120.dp,selectionContext:String="",onSelectionPending:(Boolean)->Unit={},onPlaceConfirmed:(Boolean,Place)->Unit={_,_->}){
 
  val automaticOriginAllowed by rememberUpdatedState(allowAutomaticOrigin)
 
@@ -126,7 +130,12 @@ internal fun selectedMapPlace(point:GeoPoint,nearbyAddress:String?,de:Boolean):P
 
  var locationJob by remember {mutableStateOf<Job?>(null)}
 
- var lookupSelection by remember {mutableStateOf<Pair<Boolean,Place>?>(null)}
+ var proposal by remember {mutableStateOf<PlanningPointProposal?>(null)}
+ var addressLabel by remember {mutableStateOf<PlanningAddressLabel?>(null)}
+ var sheetHeight by remember {mutableStateOf(0.dp)}
+ var hintHeight by remember {mutableStateOf(36.dp)}
+ val density=LocalDensity.current
+ val pendingChanged by rememberUpdatedState(onSelectionPending)
 
  var fallbackSettings by remember {mutableStateOf(false)}
 
@@ -210,59 +219,42 @@ internal fun selectedMapPlace(point:GeoPoint,nearbyAddress:String?,de:Boolean):P
 
  DisposableEffect(Unit){onDispose {active=false;locationJob?.cancel();}}
 
- LaunchedEffect(lookupSelection,model.locale){
-
-  val (start,chosen)=lookupSelection?:return@LaunchedEffect
-
-  val nearby=try {nearbyMapAddress(context,GeoPoint(chosen.lat,chosen.lon),model.locale)}catch(e:TimeoutCancellationException){null}catch(e:CancellationException){throw e}catch(_:Exception){null}
-
-  // A delayed label must never overwrite later typing, another point, or a search.
-
-  if(nearby!=null&&!model.busy&&model.routeView=="search"&&(if(start)model.origin else model.destination)==chosen){
-
-   val labelled=selectedMapPlace(GeoPoint(chosen.lat,chosen.lon),nearby,model.de)
-
-   if(start)model.origin=labelled else model.destination=labelled
-
-  }
-
+ LaunchedEffect(proposal,targetOrigin,model.origin,model.destination,selectionContext,model.busy) {
+  val current=proposal
+  if(current!=null&&!currentPlanningProposal(current,targetOrigin,model.origin,model.destination,selectionContext,model.busy))proposal=null
  }
-
- Box(modifier.fillMaxWidth()) {
-
-  NativeJourneyMap(model,compact=true,planning=true,planningLocating=locating||requesting,onPlanningLocate=::locate,onMapPick={point->
-
-   if(!model.busy){
-
-    val start=targetOrigin;val place=selectedMapPlace(point,null,model.de)
-
-    model.setPlace(start,place);lookupSelection=start to place
-
-    onTargetChange(false)
-
-   }
-
-  })
-
-  if(showSelector)Surface(Modifier.align(Alignment.TopCenter).padding(8.dp),color=Panel.copy(alpha=.96f),shape=MaterialTheme.shapes.medium) {
-
-   Column(Modifier.padding(horizontal=10.dp,vertical=2.dp)) {
-
-    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-
-     FilterChip(targetOrigin,{onTargetChange(true)},label={Text(model.text("A · Origin","A · Start"))})
-
-     FilterChip(!targetOrigin,{onTargetChange(false)},label={Text(model.text("B · Destination","B · Ziel"))})
-
+ LaunchedEffect(proposal,model.locale) {
+  addressLabel=null
+  val chosen=proposal?:return@LaunchedEffect
+  val language=model.locale
+  val nearby=try {nearbyMapAddress(context,chosen.point,language)}catch(e:TimeoutCancellationException){null}catch(e:CancellationException){throw e}catch(_:Exception){null}
+  if(proposal==chosen&&model.locale==language&&nearby!=null)addressLabel=PlanningAddressLabel(chosen,language,nearby)
+ }
+ val nearbyAddress=planningAddressFor(addressLabel,proposal,model.locale)
+ LaunchedEffect(proposal) {pendingChanged(proposal!=null);if(proposal==null)sheetHeight=0.dp}
+ DisposableEffect(Unit){onDispose {pendingChanged(false)}}
+ BackHandler(proposal!=null){proposal=null}
+ Box(modifier.fillMaxSize()) {
+  NativeJourneyMap(model,compact=true,planning=true,planningLocating=locating||requesting,onPlanningLocate=::locate,
+   planningTopInset=searchInset+hintHeight+16.dp,planningBottomInset=if(proposal!=null)sheetHeight else 0.dp,
+   pendingPoint=proposal?.point,pendingOrigin=proposal?.start?:false,onMapPick={point->
+    if(!model.busy){
+     selectedMapPlace(point,null,model.de) // Validate before showing a proposal.
+     proposal=PlanningPointProposal(targetOrigin,point,model.origin,model.destination,selectionContext)
+     pendingChanged(true)
     }
-
-    Text(model.text("Tap to set ${if(targetOrigin)"origin"else"destination"}","Antippen: ${if(targetOrigin)"Start"else"Ziel"} setzen"),style=MaterialTheme.typography.bodySmall,color=MutedText,modifier=Modifier.padding(bottom=6.dp))
-
-   }
-
+   })
+  Surface(Modifier.align(Alignment.TopCenter).padding(top=searchInset+8.dp,start=56.dp,end=56.dp)
+   .onSizeChanged {hintHeight=with(density){it.height.toDp()}},color=Panel,shape=MaterialTheme.shapes.large,shadowElevation=2.dp) {
+   Text(model.text("Tap map to set ${if(targetOrigin)"origin"else"destination"}","Antippen: ${if(targetOrigin)"Start"else"Ziel"} setzen"),
+    style=MaterialTheme.typography.labelMedium,color=MutedText,modifier=Modifier.padding(horizontal=12.dp,vertical=8.dp))
   }
-
-
+  proposal?.let {chosen->PlanningPointSheet(model,chosen,nearbyAddress,{sheetHeight=it},onConfirm={
+   if(currentPlanningProposal(chosen,targetOrigin,model.origin,model.destination,selectionContext,model.busy)) {
+    val place=selectedMapPlace(chosen.point,nearbyAddress,model.de)
+    proposal=null;model.setPlace(chosen.start,place);onPlaceConfirmed(chosen.start,place);onTargetChange(false)
+   }else proposal=null
+  },onCancel={proposal=null},modifier=Modifier.align(Alignment.BottomCenter))}
  }
 
  if(fallbackSettings)AlertDialog(onDismissRequest={fallbackSettings=false},title={Text(model.text("Enable location","Standort aktivieren"))},text={Text(model.text("Open Android location settings, or continue choosing addresses and map points.","Android-Standorteinstellungen öffnen oder Adressen und Kartenpunkte wählen."))},confirmButton={TextButton({fallbackSettings=false;settings.launch(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))}){Text(model.text("Open settings","Einstellungen öffnen"))}},dismissButton={TextButton({fallbackSettings=false}){Text(model.text("Continue without location","Ohne Standort fortfahren"))}})

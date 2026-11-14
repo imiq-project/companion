@@ -3,8 +3,8 @@
   "android_application_id": "de.ovgu.imiq.companion",
   "api_prefix": "/api/companion",
   "environment_prefix": "COMPANION_",
-  "application_version": "0.4.137",
-  "version_code": 148,
+  "application_version": "0.4.146",
+  "version_code": 157,
   "model_policy": "Five goals and thirteen states; no numerical or learning-policy changes.",
   "current_contract_sha256": {
     "contracts/climate-factors-v1.json": "eefbbf00676c6c89b09e69b5df3bdca56be35d5915bcbb0e93a6f394d6bfb40f",
