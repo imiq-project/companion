@@ -1,49 +1,44 @@
-# Secrets and local configuration
+# Private configuration and signing material
 .env
 .env.*
 *.env
-!.env.example
 !*.env.example
-*.pem
 *.key
+*.pem
 *.p12
 *.pfx
 *.jks
 *.keystore
 local.properties
-
-# Generated runtime and participant data
+# Runtime state, participant data and downloaded transport datasets
 /runtime/
 *.db
 *.db-*
 *.sqlite*
 *.log
+*.pbf
+*.obj
 *.zip
 *.tar
 *.apk
 *.aab
-*.pbf
-*.obj
-
-# Local environments and generated builds
-__pycache__/
-*.py[cod]
-.venv/
-venv/
+# Generated environments/build output
 .gradle/
 .kotlin/
 **/build/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
 .idea/
 .vscode/
 .DS_Store
-
-# Internal development material is maintained separately
-/AGENTS.md
-/PRODUCTION.md
-/.superdesign/
-/docs/
-/validation/
-/app-backend/tests/
-/frontend/test-fixtures/
-/frontend/app/src/test/
-/frontend/app/src/androidTest/
+# Development material is intentionally not part of this runtime tree
+.superdesign/
+AGENTS.md
+PRODUCTION.md
+legacy_frontend_rip/
+frontend/test-fixtures/
+frontend/app/src/test/
+frontend/app/src/androidTest/
+app-backend/tests/

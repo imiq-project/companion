@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companion.local/contracts/search-metadata-v1",
+  "title": "Companion block 05 terminal search metadata",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "data_class", "search_revision_id", "search_id", "source_record_version", "app_version", "created_at", "completed_at", "status", "source_status", "priority_reference", "passport_reference", "request", "places", "failure"],
+  "properties": {
+    "schema_version": {"const": "companion-search-metadata-v1"},
+    "data_class": {"enum": ["synthetic", "participant"]},
+    "search_revision_id": {"type": "string", "pattern": "^search-metadata-[0-9a-f]{64}$"},
+    "search_id": {"$ref": "#/$defs/id"}, "source_record_version": {"const": 1},
+    "app_version": {"type": "string", "minLength": 1, "maxLength": 48},
+    "created_at": {"type": "string", "maxLength": 64}, "completed_at": {"type": "string", "maxLength": 64},
+    "status": {"enum": ["complete", "failed", "cancelled"]}, "source_status": {"enum": ["complete", "failed"]},
+    "priority_reference": {"type": "object", "additionalProperties": false, "required": ["priority_revision_id"], "properties": {"priority_revision_id": {"type": "string", "pattern": "^priority-[0-9a-f]{64}$"}}},
+    "passport_reference": {"type": "object", "additionalProperties": false, "required": ["passport_id", "revision"], "properties": {"passport_id": {"$ref": "#/$defs/id"}, "revision": {"type": "integer", "minimum": 1}}},
+    "request": {"$ref": "#/$defs/request"},
+    "places": {"type": "object", "additionalProperties": false, "required": ["origin", "destination"], "properties": {"origin": {"$ref": "#/$defs/place"}, "destination": {"$ref": "#/$defs/place"}}},
+    "failure": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/failure"}]}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 240},
+    "nullable_id": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+    "coordinate": {"type": "object", "additionalProperties": false, "required": ["lat", "lon"], "properties": {"lat": {"type": "number", "minimum": -90, "maximum": 90}, "lon": {"type": "number", "minimum": -180, "maximum": 180}}},
+    "availability": {"type": "object", "additionalProperties": false, "required": ["walk", "bike", "pt", "car"], "properties": {"walk": {"type": "boolean"}, "bike": {"type": "boolean"}, "pt": {"type": "boolean"}, "car": {"type": "boolean"}}},
+    "place": {"type": "object", "additionalProperties": false, "required": ["lat", "lon", "label", "id", "houseNumber", "street", "detail", "source", "accuracy_meters"], "properties": {
+      "lat": {"type": "number", "minimum": -90, "maximum": 90}, "lon": {"type": "number", "minimum": -180, "maximum": 180},
+      "label": {"type": "string", "maxLength": 4096}, "id": {"type": "string", "maxLength": 240},
+      "houseNumber": {"type": "string", "maxLength": 160}, "street": {"type": "string", "maxLength": 2048}, "detail": {"type": "string", "maxLength": 4096},
+      "source": {"type": "string", "minLength": 1, "maxLength": 64}, "accuracy_meters": {"anyOf": [{"type": "number", "minimum": 0}, {"type": "null"}]}
+    }},
+    "query": {"type": "object", "additionalProperties": false, "required": ["query_orion", "entity_families", "weather_radius_meters"], "properties": {"query_orion": {"type": "boolean"}, "entity_families": {"type": "array", "maxItems": 1, "uniqueItems": true, "items": {"const": "weather"}}, "weather_radius_meters": {"type": "number", "minimum": 0, "maximum": 100000}}},
+    "parking": {"type": "object", "additionalProperties": false, "required": ["policy", "origin_id", "destination_id"], "properties": {"policy": {"const": "nearest-public-osm-magdeburg-v1"}, "origin_id": {"$ref": "#/$defs/nullable_id"}, "destination_id": {"$ref": "#/$defs/nullable_id"}}},
+    "request": {"type": "object", "additionalProperties": false,
+      "required": ["search_id", "datetime", "start", "stop", "journey_availability", "max_walk_m", "tolerance_profile", "record_trajectories", "context_policy", "required_model_version", "required_readout_version", "contextual_query", "climate_profile"],
+      "properties": {
+        "search_id": {"$ref": "#/$defs/id"}, "datetime": {"type": "string", "maxLength": 64}, "start": {"$ref": "#/$defs/coordinate"}, "stop": {"$ref": "#/$defs/coordinate"},
+        "journey_availability": {"$ref": "#/$defs/availability"}, "max_walk_m": {"type": "integer", "minimum": 0},
+        "tolerance_profile": {"type": "object", "maxProperties": 0}, "record_trajectories": {"type": "boolean"}, "context_policy": {"const": "observations_only"},
+        "required_model_version": {"const": "hotco_signed_grossberg_5goals_v1"}, "required_readout_version": {"const": "signed-actions-v1"},
+        "contextual_query": {"$ref": "#/$defs/query"}, "climate_profile": {"type": ["object", "null"]},
+        "car_parking": {"$ref": "#/$defs/parking"}, "boarding_stop_id": {"$ref": "#/$defs/nullable_id"}, "boarding_trip_id": {"$ref": "#/$defs/nullable_id"},
+        "boarding_departure_ms": {"type": ["number", "null"], "exclusiveMinimum": 0}, "boarding_plan_datetime": {"type": ["string", "null"], "maxLength": 64}
+      }
+    },
+    "failure": {"type": "object", "additionalProperties": false, "required": ["stage", "code", "http_status"], "properties": {
+      "stage": {"enum": ["routing_request", "response_validation", "recommendation", "forecast", "local_commit"]},
+      "code": {"enum": ["cancelled", "backend_unavailable", "request_rejected", "authentication_required", "rate_limited", "network_unavailable", "invalid_response", "unknown"]},
+      "http_status": {"anyOf": [{"type": "integer", "minimum": 100, "maximum": 599}, {"type": "null"}]}
+    }}
+  }
+}

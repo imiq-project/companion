@@ -6,6 +6,7 @@ from infrastructure.service_config import settings
 from resources import BACKEND_DIR
 
 REGISTRARS = (
+    ('infrastructure.panel_login','register_panel_login'),
     ('explanations.choice_explanation_api','register_choice_explanation'),('explanations.api','register_companion_reflection'),
     ('routing.geocoding_api','register_geocoding'),('routing.transit_stop_api','register_transit_stops'),
     ('routing.transit_departures','register_departures'),('context.weather_api','register_weather'),
@@ -14,6 +15,12 @@ REGISTRARS = (
     ('comfort_pilot.api','register'),('comfort_pilot.affect','register_affect'),
     ('comfort_pilot.prospective','register'),('comfort_pilot.learned_passport','register'),
     ('comfort_pilot.backend_experiment_api','register'),('passport.api','register_goal_priorities'),
+    ('passport.profile_transfer_api','register_profile_transfer'),
+    ('passport.profile_transfer_api','register_automatic_profile_transfer'),
+    ('passport.priority_transfer_api','register_priority_transfer'),
+    ('passport.search_transfer_api','register_search_transfer'),
+    ('passport.results_transfer_api','register_results_transfer'),
+    ('passport.hotco_transfer_api','register_hotco_transfer'),
 )
 
 

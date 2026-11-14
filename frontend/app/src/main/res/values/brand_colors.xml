@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="companion_brand_primary">#623CEA</color>
+    <color name="companion_brand_background">#E4EBF2</color>
+    <color name="companion_brand_text">#000000</color>
+</resources>

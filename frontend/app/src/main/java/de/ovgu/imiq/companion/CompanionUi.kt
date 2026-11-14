@@ -21,8 +21,9 @@ import kotlin.math.roundToInt
 internal const val COMPANION_REFLECTION="companion.companion-reflection.v1"
 
 @Composable internal fun CompanionFaceIcon(appearance:String) {
+ if(appearance=="imdillo"){ImdilloIllustration(Modifier.size(30.dp).clearAndSetSemantics {});return}
  val safe=appearance.takeIf {it in listOf("robot","explorer","creature","naturalist")}?:"robot"
- val meta=introMetadata("startup_"+safe);val image=art(meta.getString("file"))
+ val meta=companionSpriteMetadata("startup_"+safe);val image=art(meta.getString("file"))
  Canvas(Modifier.size(30.dp).clearAndSetSemantics {}) {
   val frame=meta.getJSONArray("frames").getJSONArray(0)
   val fraction=when(safe){"robot"->.64f;"naturalist"->.48f;"explorer"->.55f;else->.6f}

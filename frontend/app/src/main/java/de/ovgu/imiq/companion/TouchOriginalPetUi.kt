@@ -33,7 +33,7 @@ import kotlin.math.PI
 
 /** Draw only unchanged pixels from the established body atlas. No generated face, mesh or reticle. */
 @Composable internal fun OriginalPet(appearance:String,animated:Boolean,de:Boolean,modifier:Modifier=Modifier,aim:Offset?=null,selector:Boolean=false,aimedKey:String?=null,equipment:Boolean=false,packedGoals:List<String> = emptyList(),dropReady:Boolean=false,onEquipmentBounds:((Rect)->Unit)?=null){
- val pet=originalPetKey(appearance);val metadata=introMetadata(pet);val image=art(metadata.getString("file"))
+ val pet=originalPetKey(appearance);val metadata=companionSpriteMetadata(pet);val image=art(metadata.getString("file"))
  val gear=if(equipment)art("pet-$pet-equipment-v1.png")else null
  val items=if(equipment)packedGoals.map {if(it in goalKeys)goalInventoryImage(it)else null}else emptyList()
  val cells=remember(pet){metadata.getJSONArray("frames").let {a->List(a.length()){i->a.getJSONArray(i).let {c->IntArray(4){c.getInt(it)}}}}}

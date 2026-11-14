@@ -4,9 +4,12 @@
 
 # HOTCO model
 
+> Runtime-only publication: synthetic examples and figures linked below are
+> preserved in the archived revision; they are not included in this checkout.
+
 **From explicit declarations to a reproducible signed evaluation of travel modes.**
 
-[Back to the application guide](../../README.md) · [Model contract](../../contracts/hotco-signed-model-v1.json) · [Synthetic example](examples/synthetic-input.json) · [Computed results](examples/example-results.json)
+[Back to the application guide](../../README.md) · [Model contract](../../contracts/hotco-signed-model-v1.json) · [Synthetic example](https://github.com/imiq-project/companion/blob/f7c46aa04f806fe1c86f4817463ac557f7fd6088/app-backend/model/examples/synthetic-input.json) · [Computed results](https://github.com/imiq-project/companion/blob/f7c46aa04f806fe1c86f4817463ac557f7fd6088/app-backend/model/examples/example-results.json)
 
 This README documents the **implemented** Signed HOTCO–Grossberg model used by
 Companion. It explains the input bridge, thirteen-state network, differential
@@ -97,7 +100,7 @@ $$
 | Mode valence | Integer −3 to +3 | Initial valence activation in $[-1,1]$. |
 | Availability | Explicit Boolean per mode | Filters terminal readout; at least one mode must be available. |
 
-![Three panels showing the exact transformations from raw ratings to initial activations and signed beliefs.](examples/figures/01-measurement-bridge.png)
+![Three panels showing the exact transformations from raw ratings to initial activations and signed beliefs.](https://github.com/imiq-project/companion/blob/f7c46aa04f806fe1c86f4817463ac557f7fd6088/app-backend/model/examples/figures/01-measurement-bridge.png)
 
 **Figure 1. Measurement bridge.** These are deterministic transformations, not
 estimated coefficients. Independent importance ratings are not normalized to
@@ -147,7 +150,7 @@ M=\begin{pmatrix}
 \end{pmatrix}.
 $$
 
-![Signed weight matrix of the synthetic thirteen-state example, separated into goal, action and valence blocks.](examples/figures/02-network-topology.png)
+![Signed weight matrix of the synthetic thirteen-state example, separated into goal, action and valence blocks.](https://github.com/imiq-project/companion/blob/f7c46aa04f806fe1c86f4817463ac557f7fd6088/app-backend/model/examples/figures/02-network-topology.png)
 
 **Figure 2. Synthetic topology.** Purple means a positive signed weight,
 burgundy a negative weight, and white zero. The heatmap uses the IMIQ palette;
@@ -185,7 +188,7 @@ u_{a_m}=\underbrace{\sum_iR_{mi}n_i}_{\text{goal–belief input}}
 +\underbrace{\kappa v_m}_{\text{valence input}}.
 $$
 
-![Grouped signed bars comparing cognitive, modal and valence inputs for each mode, with a marker for their sum.](examples/figures/04-net-input-decomposition.png)
+![Grouped signed bars comparing cognitive, modal and valence inputs for each mode, with a marker for their sum.](https://github.com/imiq-project/companion/blob/f7c46aa04f806fe1c86f4817463ac557f7fd6088/app-backend/model/examples/figures/04-net-input-decomposition.png)
 
 **Figure 3. Terminal input channels.** The three bars sum to the black net-input
 marker. These values explain the implemented mechanism at that state. They are
@@ -247,13 +250,13 @@ availability are additional application-level checks, not this field's dynamics.
 
 ## Synthetic worked example
 
-The complete input is in [`examples/synthetic-input.json`](examples/synthetic-input.json).
+The complete input is in [`examples/synthetic-input.json`](https://github.com/imiq-project/companion/blob/f7c46aa04f806fe1c86f4817463ac557f7fd6088/app-backend/model/examples/synthetic-input.json).
 It declares importance ratings **6, 5, 4, 3, 6** in the canonical goal order,
 twenty belief ratings, valences **−1, 2, 1, 1**, and all four modes available.
 These declarations were authored for documentation; they are not observations
 from a participant or population averages.
 
-![Early and full action trajectories, followed by unchanged terminal values with one mode excluded only from the readout.](examples/figures/03-trajectories-and-readout.png)
+![Early and full action trajectories, followed by unchanged terminal values with one mode excluded only from the readout.](https://github.com/imiq-project/companion/blob/f7c46aa04f806fe1c86f4817463ac557f7fd6088/app-backend/model/examples/figures/03-trajectories-and-readout.png)
 
 **Figure 4. Dynamics and availability.** The first panel zooms into the first
 20 model-time units; the second includes the full computed horizon. The last
@@ -262,7 +265,7 @@ availability boundary. The endpoint heights are unchanged: a second full
 simulation checks exact trajectory equality under that changed declaration.
 This demonstration is not an application rule for inferring availability.
 
-[`example-results.json`](examples/example-results.json) contains the actual
+[`example-results.json`](https://github.com/imiq-project/companion/blob/f7c46aa04f806fe1c86f4817463ac557f7fd6088/app-backend/model/examples/example-results.json) contains the actual
 terminal state, both readouts, numerical audit, parameters and source hashes.
 Inspect that file rather than inferring numerical results from the plot's pixels.
 

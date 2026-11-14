@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companion.local/contracts/priorities-observation-v1",
+  "title": "Companion block 04: weekly reference or predecision EMA",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "data_class", "kind", "priority_revision_id", "search_id", "app_version", "created_at", "initial_profile_revision_id", "questionnaire_attempt_id", "base_passport_reference", "passport_reference", "goal_priorities_reference", "situated_importance", "contextual_passport_snapshot", "journey_availability", "model_contract_sha256", "model_version", "readout_version"],
+  "properties": {
+    "schema_version": {"const": "companion-priorities-observation-v1"},
+    "data_class": {"enum": ["synthetic", "participant"]},
+    "kind": {"enum": ["weekly_reference_confirmation", "predecision_ema"]},
+    "priority_revision_id": {"type": "string", "pattern": "^priority-[0-9a-f]{64}$"},
+    "search_id": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+    "app_version": {"type": "string", "minLength": 1, "maxLength": 48},
+    "created_at": {"type": "string", "maxLength": 64},
+    "initial_profile_revision_id": {"$ref": "#/$defs/id"},
+    "questionnaire_attempt_id": {"$ref": "#/$defs/id"},
+    "base_passport_reference": {"type": "object", "additionalProperties": false, "required": ["passport_id", "revision"], "properties": {"passport_id": {"$ref": "#/$defs/id"}, "revision": {"type": "integer", "minimum": 1}}},
+    "passport_reference": {"type": "object", "additionalProperties": false, "required": ["passport_id", "revision", "parent_passport_id", "origin"], "properties": {"passport_id": {"$ref": "#/$defs/id"}, "revision": {"type": "integer", "minimum": 1}, "parent_passport_id": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}, "origin": {"type": "string", "maxLength": 80}}},
+    "goal_priorities_reference": {"type": "object"},
+    "contextual_passport_snapshot": {"type": "object"},
+    "journey_availability": {"anyOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["walk", "bike", "pt", "car"], "properties": {"walk": {"type": "boolean"}, "bike": {"type": "boolean"}, "pt": {"type": "boolean"}, "car": {"type": "boolean"}}}]},
+    "situated_importance": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/ema"}]},
+    "model_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "model_version": {"const": "hotco_signed_grossberg_5goals_v1"},
+    "readout_version": {"const": "signed-actions-v1"}
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "predecision_ema"}}}, "then": {"properties": {"search_id": {"$ref": "#/$defs/id"}, "situated_importance": {"$ref": "#/$defs/ema"}, "journey_availability": {"type": "object"}}}},
+    {"if": {"properties": {"kind": {"const": "weekly_reference_confirmation"}}}, "then": {"properties": {"search_id": {"type": "null"}, "situated_importance": {"type": "null"}, "journey_availability": {"type": "null"}}}}
+  ],
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 240},
+    "ratings": {"type": "object", "additionalProperties": false, "required": ["pro_env", "physical", "cost", "speed", "comfort"], "properties": {"pro_env": {"type": "integer", "minimum": 1, "maximum": 7}, "physical": {"type": "integer", "minimum": 1, "maximum": 7}, "cost": {"type": "integer", "minimum": 1, "maximum": 7}, "speed": {"type": "integer", "minimum": 1, "maximum": 7}, "comfort": {"type": "integer", "minimum": 1, "maximum": 7}}},
+    "method": {"enum": ["wheel", "arrows", "direct", "keyboard", "accessibility"]},
+    "ema": {"type": "object", "additionalProperties": false, "required": ["schema_version", "question_version", "scale_version", "construct", "language", "opened_at", "confirmed_at", "presentation_order", "ratings", "entry_methods", "source", "weekly_values_displayed"], "properties": {
+      "schema_version": {"const": "pretrip-situated-importance-v1"}, "question_version": {"const": "importance-this-trip-v1"}, "scale_version": {"const": "importance-seven-anchors-v1"}, "construct": {"const": "situated_importance"},
+      "language": {"enum": ["en", "de"]}, "opened_at": {"type": "string", "maxLength": 64}, "confirmed_at": {"type": "string", "maxLength": 64},
+      "presentation_order": {"const": ["pro_env", "physical", "cost", "speed", "comfort"]}, "ratings": {"$ref": "#/$defs/ratings"},
+      "entry_methods": {"type": "object", "additionalProperties": false, "required": ["pro_env", "physical", "cost", "speed", "comfort"], "properties": {"pro_env": {"$ref": "#/$defs/method"}, "physical": {"$ref": "#/$defs/method"}, "cost": {"$ref": "#/$defs/method"}, "speed": {"$ref": "#/$defs/method"}, "comfort": {"$ref": "#/$defs/method"}}},
+      "source": {"const": "explicit_fresh_trip_responses"}, "weekly_values_displayed": {"const": false}
+    }}
+  }
+}

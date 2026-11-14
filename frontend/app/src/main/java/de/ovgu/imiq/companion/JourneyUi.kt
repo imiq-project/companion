@@ -21,6 +21,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.CancellationException
@@ -60,39 +63,35 @@ import org.json.JSONObject
  var editor by rememberSaveable {mutableStateOf<Boolean?>(null)}
  var details by rememberSaveable {mutableStateOf<String?>(null)}
  var automaticOriginAllowed by rememberSaveable {mutableStateOf(model.origin==null)}
+ var toolbarHeight by remember {mutableStateOf(100.dp)}
+ var mapSelectionPending by remember {mutableStateOf(false)}
+ val toolbarDensity=LocalDensity.current
  fun closeEditor(){keyboard?.hide();focus.clearFocus();editor=null}
  Box(Modifier.fillMaxSize()) {
-  TravelPlanningMap(model,originDraft,targetOrigin,{automaticOriginAllowed=false;closeEditor();targetOrigin=it},0,Modifier.fillMaxSize(),showSelector=false,allowAutomaticOrigin=automaticOriginAllowed)
-  Surface(Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(8.dp),color=Panel.copy(alpha=.82f),shape=MaterialTheme.shapes.large,shadowElevation=4.dp,tonalElevation=0.dp) {
-   CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 40.dp) {
+  TravelPlanningMap(model,originDraft,targetOrigin,{automaticOriginAllowed=false;closeEditor();targetOrigin=it},0,Modifier.fillMaxSize(),showSelector=false,allowAutomaticOrigin=automaticOriginAllowed,searchInset=toolbarHeight+24.dp,selectionContext=listOf(editor,details,originDraft.value,destinationDraft.value).toString(),onSelectionPending={mapSelectionPending=it;if(it)automaticOriginAllowed=false},onPlaceConfirmed={start,place->if(start)originDraft.value=place.label else destinationDraft.value=place.label})
+  Surface(Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal=12.dp,vertical=12.dp).onSizeChanged {toolbarHeight=with(toolbarDensity){it.height.toDp()}},color=Panel,shape=RoundedCornerShape(20.dp),shadowElevation=4.dp,tonalElevation=0.dp) {
+   CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 48.dp) {
    Column(Modifier.padding(horizontal=4.dp,vertical=2.dp)) {
-    Row(verticalAlignment=Alignment.CenterVertically) {
-     Column {
-      IconButton({automaticOriginAllowed=false;targetOrigin=true;closeEditor()},enabled=!model.busy,modifier=Modifier.size(40.dp).semantics {contentDescription=model.text("Set origin on map","Start auf Karte setzen")}) {TravelActionSprite("origin",Modifier.size(22.dp),highlighted=targetOrigin)}
-      IconButton({automaticOriginAllowed=false;closeEditor();val a=model.origin;val b=model.destination;model.setPlace(true,b);model.setPlace(false,a);originDraft.value=b?.label.orEmpty();destinationDraft.value=a?.label.orEmpty()},enabled=!model.busy,modifier=Modifier.size(40.dp).semantics {contentDescription=model.text("Swap origin and destination","Start und Ziel tauschen")}) {TravelActionSprite("swap",Modifier.size(22.dp))}
-      IconButton({targetOrigin=false;closeEditor()},enabled=!model.busy,modifier=Modifier.size(40.dp).semantics {contentDescription=model.text("Set destination on map","Ziel auf Karte setzen")}) {TravelActionSprite("destination",Modifier.size(22.dp),highlighted=!targetOrigin)}
-     }
-     Column(Modifier.weight(1f)) {
-      listOf(true,false).forEach {start->
+    listOf(true,false).forEach {start->
+      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+       IconButton({if(start)automaticOriginAllowed=false;targetOrigin=start;closeEditor()},enabled=!model.busy,modifier=Modifier.size(48.dp).semantics {contentDescription=model.text(if(start)"Set origin on map"else"Set destination on map",if(start)"Start auf Karte setzen"else"Ziel auf Karte setzen")}) {
+        TravelActionSprite(if(start)"origin"else"destination",Modifier.size(20.dp),highlighted=targetOrigin==start)
+       }
        val place=if(start)model.origin else model.destination
        val draft=if(start)originDraft else destinationDraft
-       Row(verticalAlignment=Alignment.CenterVertically) {
-        TextButton({automaticOriginAllowed=false;targetOrigin=start;editor=start},enabled=!model.busy,modifier=Modifier.weight(1f).heightIn(min=40.dp)) {
+        TextButton({automaticOriginAllowed=false;targetOrigin=start;editor=start},enabled=!model.busy,modifier=Modifier.weight(1f).heightIn(min=48.dp),contentPadding=PaddingValues(horizontal=4.dp,vertical=8.dp)) {
          Text(place?.label?:draft.value.takeIf {it.isNotBlank()}?:model.text(if(start)"Choose origin"else"Choose destination",if(start)"Start wählen"else"Ziel wählen"),maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium,color=Pale,modifier=Modifier.fillMaxWidth())
         }
+       if(start) {
+        IconButton({automaticOriginAllowed=false;closeEditor();val a=model.origin;val b=model.destination;model.setPlace(true,b);model.setPlace(false,a);originDraft.value=b?.label.orEmpty();destinationDraft.value=a?.label.orEmpty()},enabled=!model.busy,modifier=Modifier.size(48.dp).semantics {contentDescription=model.text("Swap origin and destination","Start und Ziel tauschen")}) {TravelActionSprite("swap",Modifier.size(18.dp))}
+        FilledTonalIconButton({if(!mapSelectionPending){closeEditor();model.search()}},enabled=model.origin!=null&&model.destination!=null&&!model.busy&&!mapSelectionPending,modifier=Modifier.size(48.dp).semantics {contentDescription=model.text("Find routes","Wege suchen")}) {
+         TravelActionSprite("search",Modifier.size(20.dp))
+        }
+       } else {
+        IconButton({closeEditor();details="recent"},enabled=!model.busy,modifier=Modifier.size(48.dp).semantics {contentDescription=model.text("Recent places","Letzte Orte")}) {TravelActionSprite("recent",Modifier.size(20.dp))}
        }
-       if(start)Spacer(Modifier.height(40.dp))
       }
-     }
-     Column {
-      FilledTonalIconButton({closeEditor();model.search()},enabled=model.origin!=null&&model.destination!=null&&!model.busy,modifier=Modifier.size(40.dp).semantics {contentDescription=model.text("Find routes","Wege suchen")}) {
-       TravelActionSprite("search",Modifier.size(22.dp))
-      }
-      IconButton({closeEditor();details="preferences"},enabled=!model.busy,modifier=Modifier.size(40.dp).semantics {contentDescription=model.text("Journey preferences","Reisepräferenzen")}) {TravelActionSprite("preferences",Modifier.size(22.dp))}
-      IconButton({closeEditor();details="recent"},enabled=!model.busy,modifier=Modifier.size(40.dp).semantics {contentDescription=model.text("Recent places","Letzte Orte")}) {TravelActionSprite("recent",Modifier.size(22.dp))}
-     }
     }
-
    }
    }
   }
@@ -108,22 +107,15 @@ import org.json.JSONObject
    }
   }
  }
- details?.let {kind->ModalBottomSheet(onDismissRequest={details=null},containerColor=Panel,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
+ if(details=="recent")ModalBottomSheet(onDismissRequest={details=null},containerColor=Panel,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-   Text(model.text(if(kind=="recent")"Recent places"else"Journey preferences",if(kind=="recent")"Letzte Orte"else"Reisepräferenzen"),style=MaterialTheme.typography.titleMedium)
-   if(kind=="recent") {
+   Text(model.text("Recent places","Letzte Orte"),style=MaterialTheme.typography.titleMedium)
     val recent=model.recents()
     if(recent.isEmpty())Copy(model.text("No recent places yet.","Noch keine letzten Orte."))
     recent.forEach {place->Text(place.label,style=MaterialTheme.typography.bodyMedium);Row {TextButton({model.setPlace(true,place);details=null;targetOrigin=false},Modifier.weight(1f)){Text(model.text("Origin","Start"))};TextButton({model.setPlace(false,place);details=null},Modifier.weight(1f)){Text(model.text("Destination","Ziel"))}}}
     if(recent.isNotEmpty())TextButton({model.store.remove("companion.recent-places.v1");model.revision++}){Text(model.text("Clear recent places","Letzte Orte löschen"))}
-   }else {
-    Copy("${model.settings().optInt("maxWalk",1500)} m · "+model.text("walking limit to public transport","Gehstrecke zum ÖPNV"))
-    val availability=model.settings().optJSONObject("journeyAvailability")?:model.profile()?.optJSONObject("profile")?.optJSONObject("availability")?:model.availability()
-    Row(horizontalArrangement=Arrangement.spacedBy(14.dp)){modes.filter {availability.optBoolean(it)}.forEach {PixelIcon(it,Modifier.size(24.dp))}}
-    TextButton({details=null;model.tab="settings"}){Text(model.text("Edit preferences","Präferenzen bearbeiten"))}
-   }
   }
- }}
+ }
 }
 @Composable private fun CurrentLocationOriginChoice(model:CompanionModel,onChoose:(Place)->Unit) {
  val context=LocalContext.current

@@ -12,6 +12,14 @@ from .longitudinal_names import canonical_api_path
 
 LOG = logging.getLogger('companion.requests')
 BODY_LIMITS = {
+    '/api/companion/data/hotco-simulations': (32 * 1024 * 1024, 'hotco_too_large', None),
+    '/api/companion/data/search-results': (32 * 1024 * 1024, 'results_too_large', None),
+    '/api/companion/data/search-metadata': (512 * 1024, 'search_too_large', None),
+    '/api/companion/data/priority-observations': (2 * 1024 * 1024, 'priority_too_large', None),
+    '/api/companion/auth/panel/login': (20 * 1024, 'auth_body_too_large', None),
+    '/api/companion/auth/panel/refresh': (20 * 1024, 'auth_body_too_large', None),
+    '/api/companion/data/profile-versions': (4 * 1024 * 1024, 'profile_too_large', None),
+    '/api/companion/data/test/profile-versions': (4 * 1024 * 1024, 'profile_too_large', None),
     '/api/companion/journeys/validate': (8 * 1024 * 1024, 'journey_too_large', 'Journey exceeds 8 MiB'),
     '/api/companion/choice-explanation': (8 * 1024 * 1024, 'choice_explanation_too_large', None),
     '/api/companion/companion-reflection': (1024 * 1024, 'companion_evidence_too_large', None),
@@ -53,7 +61,7 @@ def body_too_large():
     return jsonify(error='request_body_too_large'), 413
 
 
-COMPUTE_PATHS = frozenset(('/api/companion', '/api/companion/routed-contextual-deliberation',
+COMPUTE_PATHS = frozenset(('/api/companion/data/hotco-simulations', '/api/companion/data/search-results', '/api/companion/data/search-metadata', '/api/companion/data/priority-observations', '/api/companion/data/profile-versions', '/api/companion/data/test/profile-versions', '/api/companion', '/api/companion/routed-contextual-deliberation',
     '/api/companion/contextual-deliberation', '/api/companion/adaptive-passport/bootstrap',
     '/api/companion/adaptive-passport/profile-update', '/api/companion/profile-update',
     '/api/companion/daily-passport/confirm', '/api/companion/longitudinal/prospective/forecast',
@@ -110,7 +118,20 @@ def register_runtime(app, config):
         g.companion_timings = {}
         g.companion_request_id = uuid.uuid4().hex
         with lock:counters['requests'] += 1
-        if config.api_token and request.path.startswith('/api/'):
+        # Panel routes implement upstream authentication themselves. The shared
+        # operations token must never be bundled into an Android application.
+        panel_route = request.path in ('/api/companion/auth/panel/login', '/api/companion/auth/panel/refresh', '/api/companion/auth/panel/me')
+        panel_transfer = app.extensions.get('companion_panel_atlas_local_test', False) and request.path in (
+            '/api/companion/data/profile-transfer/status', '/api/companion/data/profile-versions')
+        panel_transfer = panel_transfer or (app.extensions.get('companion_priority_archive') is not None and request.path in (
+            '/api/companion/data/priority-transfer/status','/api/companion/data/priority-observations'))
+        panel_transfer = panel_transfer or (app.extensions.get('companion_search_archive') is not None and request.path in (
+            '/api/companion/data/search-transfer/status','/api/companion/data/search-metadata'))
+        panel_transfer = panel_transfer or (app.extensions.get('companion_results_archive') is not None and request.path in (
+            '/api/companion/data/search-results-transfer/status','/api/companion/data/search-results'))
+        panel_transfer = panel_transfer or (app.extensions.get('companion_hotco_archive') is not None and request.path in (
+            '/api/companion/data/hotco-transfer/status','/api/companion/data/hotco-simulations'))
+        if config.api_token and request.path.startswith('/api/') and not (panel_route or panel_transfer):
             supplied = request.headers.get('Authorization','')
             if not hmac.compare_digest(supplied.encode('utf-8'), ('Bearer '+config.api_token).encode('utf-8')):
                 return jsonify(error='authentication_required'),401

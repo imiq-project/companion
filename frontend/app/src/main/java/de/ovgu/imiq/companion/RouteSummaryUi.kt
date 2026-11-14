@@ -48,7 +48,7 @@ import org.json.JSONObject
 }
 
 @Composable internal fun RouteStopButton(label:String,cancelLabel:String,onCancel:(()->Unit)?,onClick:()->Unit) {
- val red=Color(0xFFFF657B)
+ val red=CompanionPalette.Burgundy
  Box(Modifier.size(44.dp).clip(CircleShape).background(red.copy(alpha=.15f))
   .combinedClickable(role=Role.Button,onClick=onClick,onLongClick=onCancel,onLongClickLabel=cancelLabel)
   .semantics {contentDescription=label},contentAlignment=Alignment.Center) {
@@ -82,7 +82,7 @@ private fun vehicleName(vehicle:String,de:Boolean)=when(vehicle){"tram"->"Tram";
  val seconds=liveDepartureDelay(transit)?:return
  val line=transit?.optString("line").orEmpty()
  val description=model.text("Live departure delay","Echtzeit-Abfahrtsverspätung")+" · "+line+" · "+departureDelayLabel(seconds)
- SummaryFitText(departureDelayLabel(seconds),10f,Color(0xFFFF657B),FontWeight.Bold,Modifier.semantics {contentDescription=description})
+ SummaryFitText(departureDelayLabel(seconds),10f,CompanionPalette.Burgundy,FontWeight.Bold,Modifier.semantics {contentDescription=description})
 }
 
 @Composable private fun SummaryIdentity(model:CompanionModel,card:RouteCard,time:Long,recommended:Boolean,modifier:Modifier,statusLabel:String?=null,departureOnly:Boolean=false) {
@@ -135,7 +135,7 @@ private fun vehicleName(vehicle:String,de:Boolean)=when(vehicle){"tram"->"Tram";
 }
 
 /** Shared type scale; reserve room for larger text instead of clipping its lines. */
-@Composable internal fun RouteSummaryPanel(model:CompanionModel,card:RouteCard,time:Long,recommended:Boolean,onDetails:()->Unit,elapsed:String?=null,controls:Boolean=false,statusLabel:String?=null,startedAt:Long?=null,passportSnapshot:JSONObject?=null,onCancel:(()->Unit)?=null,simplified:Boolean=false,action:@Composable ()->Unit) {
+@Composable internal fun RouteSummaryPanel(model:CompanionModel,card:RouteCard,time:Long,recommended:Boolean,onDetails:()->Unit,elapsed:String?=null,controls:Boolean=false,statusLabel:String?=null,startedAt:Long?=null,passportSnapshot:JSONObject?=null,onCancel:(()->Unit)?=null,simplified:Boolean=false,showDetails:Boolean=true,action:@Composable ()->Unit) {
  val fontScale=LocalDensity.current.fontScale
  val roleScale=MaterialTheme.typography.bodyMedium.fontSize.value/14f
  val baseHeight=if(simplified&&carWalkingSeconds(card)==null)104f else 128f
@@ -143,6 +143,7 @@ private fun vehicleName(vehicle:String,de:Boolean)=when(vehicle){"tram"->"Tram";
  val passport=passportSnapshot?:routePassport(model)
  CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodyMedium) {
   val details:@Composable ()->Unit={
+   if(showDetails){
    if(controls)RouteStopButton(model.text("Stop journey · Experience","Reise beenden · Erfahrung"),model.text("Cancel journey","Reise abbrechen"),onCancel,onDetails)
    else IconButton(onDetails,Modifier.size(40.dp).semantics {contentDescription=model.text("Route details","Routendetails")}) {
     Canvas(Modifier.size(20.dp)) {
@@ -150,6 +151,7 @@ private fun vehicleName(vehicle:String,de:Boolean)=when(vehicle){"tram"->"Tram";
      drawCircle(Pale,1.2.dp.toPx(),Offset(size.width*.5f,size.height*.3f))
      drawLine(Pale,Offset(size.width*.5f,size.height*.46f),Offset(size.width*.5f,size.height*.74f),1.8.dp.toPx())
     }
+   }
    }
   }
   BoxWithConstraints(Modifier.fillMaxWidth()) {

@@ -17,8 +17,8 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.*
 import kotlin.math.*
 
-private val HeartRed=Color(0xFFFF5978)
-private val DisgustPurple=Color(0xFFB49AE8)
+private val HeartRed=CompanionPalette.Primary
+private val DisgustPurple=CompanionPalette.Burgundy
 
 @Composable private fun valenceReactionPhase(event:Int,animated:Boolean):Float {
  val phase=remember {Animatable(1f)}
@@ -41,7 +41,7 @@ internal fun valenceFeeling(rating:Int?,de:Boolean):String = when(rating) {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable internal fun ValenceEditor(appearance:String,mode:String,rating:Int?,animated:Boolean,de:Boolean,onPrevious:()->Unit={},onNext:()->Unit={},prompt:String?=null,showModeNavigation:Boolean=true,onChange:(Int)->Unit) {
+@Composable internal fun ValenceEditor(appearance:String,mode:String,rating:Int?,animated:Boolean,de:Boolean,onPrevious:()->Unit={},onNext:()->Unit={},prompt:String?=null,showModeNavigation:Boolean=true,showScene:Boolean=true,onChange:(Int)->Unit) {
  key(mode) {
   var event by remember {mutableIntStateOf(0)}
   val phase=valenceReactionPhase(event,animated)
@@ -49,9 +49,10 @@ internal fun valenceFeeling(rating:Int?,de:Boolean):String = when(rating) {
    val next=value.coerceIn(-3,3)
    if(next!=rating){event++;onChange(next)}
   }
-  val tone=when {rating==null->MutedText;rating<0->DisgustPurple;rating>0->HeartRed;else->Gold}
-  ValenceWorld(appearance,mode,rating,animated,phase,de,onPrevious,onNext,showModeNavigation)
-  Copy(prompt?:if(de)"Denke an die Nutzung dieses Verkehrsmittels auf deinen üblichen Wegen. Wie angenehm oder unangenehm fühlt sie sich insgesamt an? 0 bedeutet neutral, nicht unbeantwortet."else"Think about using this mode on your usual journeys. Overall, how pleasant or unpleasant does it feel to you? 0 means neutral, not unanswered.")
+  val tone=when {rating==null->MutedText;rating<0->DisgustPurple;rating>0->HeartRed;else->MutedText}
+  if(showScene)ValenceWorld(appearance,mode,rating,animated,phase,de,onPrevious,onNext,showModeNavigation)
+  val question=prompt?:if(de)"Denke an die Nutzung dieses Verkehrsmittels auf deinen üblichen Wegen. Wie angenehm oder unangenehm fühlt sie sich insgesamt an? 0 bedeutet neutral, nicht unbeantwortet."else"Think about using this mode on your usual journeys. Overall, how pleasant or unpleasant does it feel to you? 0 means neutral, not unanswered."
+  if(showScene)Copy(question)else Text(question,style=MaterialTheme.typography.bodyLarge,color=Pale)
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
    IconButton({choose((rating?:0)-1)},Modifier.size(48.dp).semantics {contentDescription=if(de)"Eine Stufe Richtung unangenehm"else"One step towards unpleasant"},enabled=rating!=-3) {
     ValenceHeart(false,rating,phase,Modifier.size(44.dp),animated)

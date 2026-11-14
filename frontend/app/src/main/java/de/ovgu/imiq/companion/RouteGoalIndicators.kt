@@ -61,7 +61,7 @@ import kotlin.math.abs
      ContextSprite(goalKeys[needKeys.indexOf(link.need)],false,Modifier.size(18.dp))
      Canvas(Modifier.align(Alignment.TopEnd).width(7.dp).height(18.dp)) {
       val phase=if(animated)(seconds*.85f+index*.12f)%1f else .5f
-      val color=(if(positive)Color(0xFF53EB89)else Color(0xFFFF657B)).copy(alpha=if(animated).6f+.4f*(1-phase)else 1f)
+      val color=(if(positive)CompanionPalette.Primary else CompanionPalette.Burgundy).copy(alpha=if(animated).6f+.4f*(1-phase)else 1f)
       val tip=Offset(size.width*.5f,size.height*(if(positive).3f-phase*.2f else .7f+phase*.2f))
       val base=tip+Offset(0f,size.height*(if(positive).4f else -.4f))
       val wing=size.height*(if(positive).17f else -.17f)
@@ -76,7 +76,7 @@ import kotlin.math.abs
  if(expanded)AlertDialog(onDismissRequest={expanded=false},title={Text(model.text("Simulated goal support · ","Simulierte Zielbeiträge · ")+modeName(card.mode,model.de))},text={
   Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
    if(basic)Text(model.text("Basic simulation from your Passport. Route context is unavailable; pedestrian access is not evaluated in these goal indicators.","Basissimulation aus deinem Passport. Routenkontext fehlt; Fußwege werden in diesen Zielbeiträgen nicht bewertet."))
-   Text(model.text("Green ↑: up to three strongest supports. Red ↓: up to three strongest obstacles. These are goal inputs at the end of this option’s simulation, not measured satisfaction.","Grün ↑: bis zu drei stärkste Beiträge. Rot ↓: bis zu drei stärkste Hindernisse. Dies sind Zielbeiträge am Ende der Simulation dieser Option, keine gemessene Zufriedenheit."))
+   Text(model.text("Purple ↑: up to three strongest supports. Burgundy ↓: up to three strongest obstacles. These are goal inputs at the end of this option’s simulation, not measured satisfaction.","Violett ↑: bis zu drei stärkste Beiträge. Burgunderrot ↓: bis zu drei stärkste Hindernisse. Dies sind Zielbeiträge am Ende der Simulation dieser Option, keine gemessene Zufriedenheit."))
    if(links==null)Text(model.text("This saved route has no simulation evidence for goal support.","Für diese gespeicherte Route fehlen Simulationsdaten zu Zielbeiträgen."))
    else {
     Text(model.text("All simulated connections","Alle simulierten Verbindungen"))

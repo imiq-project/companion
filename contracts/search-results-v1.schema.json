@@ -1,0 +1,6041 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companion.local/contracts/search-results-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "companion-search-results-v1"
+    },
+    "data_class": {
+      "enum": [
+        "synthetic",
+        "participant"
+      ]
+    },
+    "results_revision_id": {
+      "type": "string",
+      "pattern": "^search-results-[0-9a-f]{64}$"
+    },
+    "search_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "app_version": {
+      "type": "string",
+      "maxLength": 48
+    },
+    "backend_generated_at": {
+      "type": "string",
+      "maxLength": 16000
+    },
+    "response_received_at": {
+      "type": "string",
+      "maxLength": 16000
+    },
+    "search_metadata_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "search_revision_id": {
+          "type": "string",
+          "pattern": "^search-metadata-[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "search_revision_id"
+      ]
+    },
+    "source_response_schema_version": {
+      "const": "routed-contextual-deliberation-v1"
+    },
+    "source_response_status": {
+      "enum": [
+        "contextual_complete",
+        "contextual_partial",
+        "routing_only"
+      ]
+    },
+    "journey_availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "walk": {
+          "type": "boolean"
+        },
+        "bike": {
+          "type": "boolean"
+        },
+        "car": {
+          "type": "boolean"
+        },
+        "pt": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "bike",
+        "car",
+        "pt",
+        "walk"
+      ]
+    },
+    "availability_source": {
+      "enum": [
+        "current_journey_declaration",
+        "confirmed_passport"
+      ]
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "routes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route"
+          }
+        },
+        "provider_audit": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "imiq-routing": {
+              "$ref": "#/$defs/provider"
+            },
+            "otp": {
+              "$ref": "#/$defs/provider"
+            },
+            "graphhopper": {
+              "$ref": "#/$defs/provider"
+            }
+          },
+          "required": []
+        },
+        "ordering_policy": {
+          "type": "string",
+          "maxLength": 16000
+        }
+      },
+      "required": [
+        "provider_audit",
+        "routes"
+      ]
+    },
+    "route_audit": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/audit"
+      }
+    },
+    "candidate_routes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
+    },
+    "route_context_observations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/context_entry"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 16000
+      }
+    },
+    "climate_method": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "factor_version": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "factor_sha256": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "profile_revision": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "affects_hotco": {
+          "const": false
+        }
+      },
+      "required": []
+    }
+  },
+  "required": [
+    "app_version",
+    "availability_source",
+    "backend_generated_at",
+    "candidate_routes",
+    "data_class",
+    "journey_availability",
+    "response_received_at",
+    "results_revision_id",
+    "route_audit",
+    "route_context_observations",
+    "routing",
+    "schema_version",
+    "search_id",
+    "search_metadata_reference",
+    "source_response_schema_version",
+    "source_response_status",
+    "warnings"
+  ],
+  "$defs": {
+    "coordinate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      },
+      "required": [
+        "latitude",
+        "longitude"
+      ]
+    },
+    "geometry": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "LineString"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  }
+                ],
+                "items": false
+              }
+            }
+          },
+          "required": [
+            "coordinates",
+            "type"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/coordinate"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "score": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "poi_boost": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "raw": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "utility": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": []
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agent_weight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "contribution": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mode_fit": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "stop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gtfsId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "code": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platformCode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parentStation": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "gtfsId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": []
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position_kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "access": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "access:conditional": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "addr:city": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "addr:country": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "addr:housenumber": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "addr:place": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "addr:postcode": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "addr:street": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "alt_name": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "amenity": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "announcement": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "area": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "area:highway": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "authentication:disc:conditional": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "authentication:ticket": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "authentication:ticket:conditional": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "barrier": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "bench": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "bicycle": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "bicycle_parking": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "bin": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "bridge": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "building": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "building:colour": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "building:levels": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "building:levels:underground": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "building:part": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "bus": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "bus_routes": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "capacity": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "capacity:bus": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "capacity:charging": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "capacity:disabled": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "capacity:parent": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "capacity:women": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "charge": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "charge:conditional": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "check_date": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "check_date:bench": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "check_date:fee": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "check_date:noref:IFOPT": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "check_date:ref:IFOPT": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "check_date:shelter": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "contact:whatsapp": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "covered": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "departures_board": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "departures_board:speech_output": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "destination": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "disabled": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "disabled:conditional": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "disused": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "disused:railway": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "email": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "fare_zone": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "fee": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "fee:conditional": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "fixme": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "foot": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "height": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "hgv": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "highway": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "historic:tourism": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "info": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "informal": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "is_sidepath": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "is_sidepath:of": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "is_sidepath:of:ref": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "kerb": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "kerb:approach_aid": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "landuse": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "lastcheck": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "layer": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "level": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "light_rail": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "lit": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "local_ref": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "markings": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "maxheight": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "maxstay": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "maxstay:conditional": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "maxwidth:physical": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "mobile": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "motor_vehicle": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "motorcar": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "motorcycle": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "name:OhreBus": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "name:de": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "name:en": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "name_old": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "natural": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "network": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "network:wikidata": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "network:wikipedia": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "noref:IFOPT": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "not:network:wikidata": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "old_name": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "old_uic_name": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "oneway:bicycle": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "opening_hours": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "operator": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "operator:short": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "operator:type": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "operator:wikidata": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "orientation": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "panoramax": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "park_ride": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "parking": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "parking:condition": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "parking:lane:both": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "parking:lane:hgv": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "parking:markings": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "parking_space": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "passenger_information_display": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "passenger_information_display:speech_output": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:account_cards": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:american_express": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:app": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:apple_pay": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:cards": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:cash": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:coins": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:coins:denominations": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:contactless": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:credit_cards": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:description": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:girocard": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:mastercard": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:notes": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:notes:denominations": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:paybyphone": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:prepaid_ticket": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:v_pay": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "payment:visa": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "phone": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "picture": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "platform_lift": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "platform_lift:maxlength:physical": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "platform_lift:maxweight": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "platform_lift:portable": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "proposed": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "psv": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "public_transport": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "rail": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "railway": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "ramp": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "ramp:portable": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "ramp:portable:length": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "ramp:portable:maxweight": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "ref": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "ref:IFOPT": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "ref:IFOPT:exists": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "ref:mvb": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "ref_name": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "restriction": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "roof:colour": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "roof:material": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "roof:shape": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "route_ref": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "segregated": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "shelter": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "smoothness": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "source": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "source:capacity": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "source:url": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "supervised": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "surface": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "surveillance": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "tactile_paving": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "toilets:wheelchair": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "tourist_bus": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "traffic_sign": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "traffic_sign:forward": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "train": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "tram": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "type": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "uic_name": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "uic_ref": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "vehicle": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "vending": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "waste_basket": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "website": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "wheelchair": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "wheelchair:description": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "width": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "winter_service:operator": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "winter_service:tour": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "zone": {
+              "type": "string",
+              "maxLength": 16000
+            }
+          },
+          "required": []
+        }
+      },
+      "required": []
+    },
+    "selected_stop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gtfsId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "code": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platformCode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platform_association": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "waiting_platform": {
+          "$ref": "#/$defs/platform"
+        }
+      },
+      "required": []
+    },
+    "parking_place": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position_kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "access": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fee": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "selection": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geographic_distance_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "occupancy_known": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "parking": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "osm_base": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actual_vehicle_location_known": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parking_entrance_verified": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin": {
+          "$ref": "#/$defs/parking_place"
+        },
+        "destination": {
+          "$ref": "#/$defs/parking_place"
+        }
+      },
+      "required": []
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "distance_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "transfers": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "walk_duration_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "walk_distance_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "waiting_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin_access_offset_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "destination_access_offset_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin_access_time_unknown": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "destination_access_time_unknown": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parking_assumption": {
+          "$ref": "#/$defs/parking"
+        }
+      },
+      "required": []
+    },
+    "alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "osm_base": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timetable_line_reference": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "osm_line_reference": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "path_policy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reference_snapshot_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "length_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "anchor_count": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "piece_count": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "boarding_offset_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "alighting_offset_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maximum_anchor_offset_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "relation_id": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "line_relation_matched": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vehicle_path_observed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "service_shape_verified": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reference_updates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "retrieved_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source_url": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source_sha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "minlat": {
+                    "anyOf": [
+                      {
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "minlon": {
+                    "anyOf": [
+                      {
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "maxlat": {
+                    "anyOf": [
+                      {
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "maxlon": {
+                    "anyOf": [
+                      {
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": []
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      "required": []
+    },
+    "transit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "line_name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gtfs_route_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gtfs_trip_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "service_date": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geometry_quality": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "realtime_status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "static_dataset_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "walking_limit_policy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "context_waiting_policy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "delay_hotco_policy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start_time_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end_time_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scheduled_start_time_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scheduled_end_time_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "departure_delay_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "arrival_delay_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "waiting_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unallocated_duration_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "realtime_feed_timestamp": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "realtime": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "from": {
+          "$ref": "#/$defs/stop"
+        },
+        "to": {
+          "$ref": "#/$defs/stop"
+        },
+        "reference_alignment": {
+          "$ref": "#/$defs/alignment"
+        },
+        "selected_boarding_stop": {
+          "$ref": "#/$defs/selected_stop"
+        },
+        "waiting_intervals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "seconds": {
+                "type": "number"
+              },
+              "at": {
+                "$ref": "#/$defs/stop"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      "required": []
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geometry_provenance": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "segment_timing_method": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mode_key": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "candidate_kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "context_spatial_fidelity": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geometry_quality": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timing_source": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spatial_matching": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "route_identity_verified": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pedestrian_access_routed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin_access_time_unknown": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "destination_access_time_unknown": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unallocated_duration_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "routing_rank": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin_access_offset_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "destination_access_offset_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geometry_sample_count": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "search_radius_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "routing_score": {
+          "$ref": "#/$defs/score"
+        },
+        "provider_itinerary_id": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "transit": {
+          "$ref": "#/$defs/transit"
+        },
+        "parking_assumption": {
+          "$ref": "#/$defs/parking"
+        },
+        "selected_boarding_stop": {
+          "$ref": "#/$defs/selected_stop"
+        },
+        "reference_routing_summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "metric_comparison": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "distance_meters_relative_difference": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "duration_seconds_relative_difference": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": []
+        }
+      },
+      "required": []
+    },
+    "leg": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "segment_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "access_role": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "distance_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "transfers": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "start": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "end": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "transit": {
+          "$ref": "#/$defs/transit"
+        }
+      },
+      "required": []
+    },
+    "vehicle_values": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fuel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fuel_blend": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "homologation_protocol": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consumption_basis": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bicycle_type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "occupants": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consumption_l_per_100km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "electricity_kwh_per_100km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "homologated_co2_g_per_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "catalogue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entry_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "catalogue_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_updated_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_record_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_file_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "make": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variant": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fuel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fuel_label": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "transmission": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reference_policy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "market": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "engine_cc": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "power_kw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_year": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile_values": {
+          "$ref": "#/$defs/vehicle_values"
+        },
+        "source_ranges": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "litres_per_100km": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "wh_per_km": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "tailpipe_co2_g_per_km": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": []
+        },
+        "reference": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "basis": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "factor_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "factor_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "g_co2e_per_vehicle_km": {
+              "type": "number"
+            },
+            "factor_rows": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 16000
+              }
+            },
+            "assumptions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 16000
+              }
+            }
+          },
+          "required": []
+        }
+      },
+      "required": []
+    },
+    "vehicle": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schema_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "profile_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "updated_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "make": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "variant": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fuel": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fuel_blend": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "homologation_protocol": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "consumption_basis": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "bicycle_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "consumption_mode": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "year": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "occupants": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "consumption_l_per_100km": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "electricity_kwh_per_100km": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "homologated_co2_g_per_km": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "catalogue": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/catalogue"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": []
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "climate_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "distance_basis": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vehicle": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "distance_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "g_co2e": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kg_per_passenger_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "g_co2e_vehicle": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estimated_fuel_litres": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estimated_electricity_kwh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vehicle_occupants": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "factor_rows": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16000
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16000
+          }
+        }
+      },
+      "required": []
+    },
+    "climate_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "method_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "factor_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "factor_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_license": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "factor_region": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "boundary": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estimated_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "search_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "route_key": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope_note": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estimate_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "g_co2e": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "known_portion_g_co2e": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile_snapshot": {
+          "$ref": "#/$defs/vehicle"
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16000
+          }
+        },
+        "segments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/climate_segment"
+          }
+        },
+        "uncertainty": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "statistical_confidence_interval": {
+              "type": "boolean"
+            }
+          },
+          "required": []
+        }
+      },
+      "required": []
+    },
+    "climate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "method_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "factor_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "factor_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_license": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "factor_region": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "boundary": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estimated_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "search_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "route_key": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope_note": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estimate_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "g_co2e": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "known_portion_g_co2e": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile_snapshot": {
+          "$ref": "#/$defs/vehicle"
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16000
+          }
+        },
+        "segments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/climate_segment"
+          }
+        },
+        "uncertainty": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "maxLength": 16000
+            },
+            "statistical_confidence_interval": {
+              "type": "boolean"
+            }
+          },
+          "required": []
+        },
+        "comparisons": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "car": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "meaning": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reference_policy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "difference_g_co2e": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reference": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/climate_base"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": []
+            },
+            "pt": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "meaning": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reference_policy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "difference_g_co2e": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reference": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/climate_base"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": []
+            }
+          },
+          "required": []
+        }
+      },
+      "required": []
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rank": {
+          "type": "integer"
+        },
+        "provider_option": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mode_key": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "mode_label": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_itinerary_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unavailable_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "availability_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "feasible": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "$ref": "#/$defs/score"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "legs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/leg"
+          }
+        },
+        "transit": {
+          "$ref": "#/$defs/transit"
+        },
+        "_geometry_evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "climate_estimate": {
+          "$ref": "#/$defs/climate"
+        },
+        "dimension_scores": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dimension"
+          }
+        },
+        "top_matching_values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dimension"
+          }
+        },
+        "top_conflicting_values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dimension"
+          }
+        },
+        "matched_pois": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "category": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 16000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lat": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lon": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "distance_meters": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "score": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "boost": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      "required": [
+        "available",
+        "mode_key",
+        "rank"
+      ]
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "route_id": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "origin": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "destination": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "legs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/leg"
+          }
+        },
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "requested_at": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "source_metadata": {
+          "$ref": "#/$defs/evidence"
+        },
+        "transport_modes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16000
+          }
+        }
+      },
+      "required": [
+        "destination",
+        "geometry",
+        "legs",
+        "origin",
+        "requested_at",
+        "route_id",
+        "source_metadata",
+        "summary",
+        "transport_modes"
+      ]
+    },
+    "rt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "compatibility_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "static_dataset_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "graph_dataset_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "static_source_last_modified": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "feed_timestamp": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valid_until": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trip_updates": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "alerts": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "captured_at": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_checked_at": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dataset_compatible": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "selected_boarding_stop": {
+          "$ref": "#/$defs/selected_stop"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "captured_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ranking_policy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attribution": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gtfs_license": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "configured": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "realtime_feed_fresh": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "feed_status_is_separate_observation": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "route_count": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_walk_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "routing_errors_count": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rejected_itineraries_count": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "modes": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "walk": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": []
+            },
+            "bike": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": []
+            },
+            "car": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": []
+            }
+          },
+          "required": []
+        },
+        "realtime_status_before": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/rt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "realtime_status_after": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/rt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "later_departures": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offset_minutes": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": []
+        }
+      },
+      "required": []
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "routing_rank": {
+          "type": "integer"
+        },
+        "mode_key": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "route_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geometry_failure": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "context_ready": {
+          "type": "boolean"
+        },
+        "geometry_evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/evidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "context_ready",
+        "geometry_evidence",
+        "geometry_failure",
+        "mode_key",
+        "reason",
+        "route_id",
+        "routing_rank"
+      ]
+    },
+    "ngsi_attribute": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": []
+    },
+    "observation_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "weather_fallback_contract": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "measurement_semantics": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_attribute": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attribution": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query_method": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query_list_type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ngsi_type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp_confidence": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp_raw": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parsed_local_datetime": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parsed_datetime": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timezone_provenance": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_contract_confidence": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "temporal_freshness": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sensor_time_contract": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actuality_provenance": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_response_received_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "canonical_variable": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_report_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_report_time_provenance": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "published_timestamp_role": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rain_contract_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rain_use": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_sensor_model": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_unit": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp_provenance": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp_reference_attribute": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp_reference_entity": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit_provenance": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_contract_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "received_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_current_values_author_confirmation": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reference_height_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query_list_entity_count": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "distance_to_segment_midpoint_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query_radius_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "measurement_window_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "measurement_window_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reporting_interval_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "normalization_eligible": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "learning_eligible": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outside_local_coverage": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nearest_only": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actual_measurement_time_known": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "measurement_time_known": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rain_display_eligible": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "synthetic": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_contract_references": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16000
+          }
+        },
+        "source_contract_valid_range": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "ngsi_metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "unit": {
+              "$ref": "#/$defs/ngsi_attribute"
+            },
+            "unitCode": {
+              "$ref": "#/$defs/ngsi_attribute"
+            },
+            "observedAt": {
+              "$ref": "#/$defs/ngsi_attribute"
+            },
+            "datetime": {
+              "$ref": "#/$defs/ngsi_attribute"
+            }
+          },
+          "required": []
+        }
+      },
+      "required": []
+    },
+    "spatial": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entity_type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query_latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query_longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "usable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_location": {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "location": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "latitude": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "longitude": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "usable": {
+              "type": "boolean"
+            },
+            "raw_location": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": []
+        }
+      },
+      "required": []
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variable": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_entity_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "numeric_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_value": {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "OBSERVED",
+            "DERIVED",
+            "UNKNOWN"
+          ]
+        },
+        "spatial_metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/spatial"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/observation_metadata"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "confidence",
+        "numeric_value",
+        "quality",
+        "raw_value",
+        "source",
+        "source_entity_id",
+        "source_metadata",
+        "spatial_metadata",
+        "status",
+        "timestamp",
+        "unit",
+        "variable"
+      ]
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "variable": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "display_value": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "freshness": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_confidence": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "displayable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "eligible_for_model": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "context_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "segment_id": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "mode": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "start": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "end": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "distance_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "raw_observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/observation"
+          }
+        }
+      },
+      "required": [
+        "distance_meters",
+        "duration_seconds",
+        "end",
+        "geometry",
+        "mode",
+        "raw_observations",
+        "segment_id",
+        "start"
+      ]
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "route_id": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "requested_at": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "origin": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "destination": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "total_distance_meters": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "total_duration_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/observation"
+          }
+        },
+        "segments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/context_segment"
+          }
+        },
+        "context_facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fact"
+          }
+        },
+        "source_metadata": {
+          "$ref": "#/$defs/evidence"
+        }
+      },
+      "required": [
+        "context_facts",
+        "destination",
+        "origin",
+        "raw_observations",
+        "requested_at",
+        "route_id",
+        "segments",
+        "source_metadata",
+        "total_distance_meters",
+        "total_duration_seconds"
+      ]
+    },
+    "context_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "route_id": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "route_context": {
+          "$ref": "#/$defs/context"
+        },
+        "source_status": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "supplied": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "weather": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "parking": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "air_quality": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "traffic": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ev_charging": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "vehicles": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "water_levels": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "buildings": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": []
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16000
+          }
+        }
+      },
+      "required": [
+        "route_context",
+        "route_id",
+        "source_status",
+        "warnings"
+      ]
+    }
+  }
+}

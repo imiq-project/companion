@@ -10,6 +10,8 @@ import androidx.compose.ui.semantics.semantics
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.TimeoutCancellationException
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -37,6 +39,7 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.camera.CameraPosition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.Lifecycle
@@ -47,7 +50,7 @@ internal fun locationAccessBlocked(hasPermission:Boolean,servicesEnabled:Boolean
 
 private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offsets:List<Offset>,val mode:String,val dashed:Boolean,val vehicle:String)
 
-@Composable fun NativeJourneyMap(model:CompanionModel,tripRecord:JSONObject?=null,trackedTrip:JSONObject?=null,compact:Boolean=false,selectedOnly:Boolean=false,planning:Boolean=false,planningLocating:Boolean=false,onMapPick:((GeoPoint)->Unit)?=null,onPlanningLocate:(()->Unit)?=null,pendingPoint:GeoPoint?=null,playbackFraction:Double?=null) {
+@Composable fun NativeJourneyMap(model:CompanionModel,tripRecord:JSONObject?=null,trackedTrip:JSONObject?=null,compact:Boolean=false,selectedOnly:Boolean=false,planning:Boolean=false,planningLocating:Boolean=false,onMapPick:((GeoPoint)->Unit)?=null,onPlanningLocate:(()->Unit)?=null,pendingPoint:GeoPoint?=null,playbackFraction:Double?=null,navigation:NavigationMapState?=null,planningTopInset:Dp=120.dp,planningBottomInset:Dp=0.dp,pendingOrigin:Boolean=false) {
  val context=LocalContext.current
  val preferences=remember(model.revision){model.settings()}
  var poiSettingsSheet by remember {mutableStateOf(false)}
@@ -121,7 +124,7 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
  // validated service observation, independent of polyline decimation. A second
  // visible-map stream must not override it or write simulated movement.
  val serviceFix=liveTracking?.takeIf {it.journeyId==trackedTrip?.optString("journey_id")&&trackedTrip.optString("status")=="recording"}?.point
- val position=if(planning)model.planningPosition else if(tracking)serviceFix?:latest else mapFix
+ val position=if(planning)model.planningPosition else if(tracking)serviceFix?:latest else if(playbackFraction!=null)null else mapFix
  var locationBusy by remember {mutableStateOf(false)}
  var locationError by remember {mutableStateOf<String?>(null)}
  var follow by remember(routeKey) {mutableStateOf(planning)}
@@ -140,8 +143,8 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
  }
  val locationActions=rememberAndroidLocationAccess(model,onReady={locationBlocked=false;follow=true;if(planning)onPlanningLocate?.invoke()else if(!tracking&&mapFix==null)locateMap()},onUnavailable={locationBusy=false;locationBlocked=!hasLocationAccess(context)||!locationServicesEnabled(context)})
  // Keep the display current even after a manual pan. Camera following is independent.
- LaunchedEffect(mapLifecycle,planning,tracking,locationBlocked,routeKey) {
-  if(!planning&&!tracking&&!locationBlocked)mapLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+ LaunchedEffect(mapLifecycle,planning,tracking,playbackFraction!=null,locationBlocked,routeKey) {
+  if(!planning&&!tracking&&playbackFraction==null&&!locationBlocked)mapLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
    try {mapLocations(context).collect {fix->
     mapFix=obj("lat" to fix.latitude,"lon" to fix.longitude,"accuracy_m" to fix.accuracy.toDouble(),"monotonic_ms" to fix.elapsedRealtimeNanos/1000000)
    }}catch(e:CancellationException){throw e}catch(_:Exception){}
@@ -164,7 +167,7 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
  val points=remember(focus,shown,origin,destination){(focus?.segments?.flatMap {it.points}?:shown.flatMap {r->r.segments.flatMap {it.points}})+listOfNotNull(origin?.let {GeoPoint(it.lat,it.lon)},destination?.let {GeoPoint(it.lat,it.lon)})}
  var nativeMap by remember{mutableStateOf<MapLibreMap?>(null)}
  var cameraRevision by remember{mutableIntStateOf(0)}
- var mapStyle by remember{mutableStateOf(JourneyMapStyle.fromKey(model.store.get("companion.map-style.v1")))}
+ var mapStyle by remember{mutableStateOf(if(navigation!=null)JourneyMapStyle.Clear else JourneyMapStyle.fromKey(model.store.get("companion.map-style.v1")))}
  var styleSheet by remember{mutableStateOf(false)}
  var size by remember{mutableStateOf(IntSize.Zero)}
  var retry by remember{mutableIntStateOf(0)}
@@ -173,6 +176,7 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
  LaunchedEffect(mapLoading,mapStyle,retry){if(mapLoading){delay(25000);if(mapLoading){mapLoading=false;mapFailure=true}}}
  val density=LocalDensity.current
  LaunchedEffect(nativeMap,routeKey,selected,size,if(planning&&origin?.source!="map_selection")origin?.let {GeoPoint(it.lat,it.lon)} else null,if(planning&&destination?.source!="map_selection")destination?.let {GeoPoint(it.lat,it.lon)} else null){
+  if(navigation!=null)return@LaunchedEffect
   val map=nativeMap?:return@LaunchedEffect
   if(size.width==0||size.height==0)return@LaunchedEffect
   val locations=points.map {LatLng(it.lat,it.lon)}.distinct()
@@ -183,8 +187,56 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
   }
  }
  LaunchedEffect(nativeMap,position?.optLong("monotonic_ms"),follow,size,routeKey,selected){
+  if(navigation!=null)return@LaunchedEffect
   val map=nativeMap?:return@LaunchedEffect
   if((follow||planning&&origin==null&&destination==null)&&position!=null&&size.width>0&&size.height>0)map.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(position.getDouble("lat"),position.getDouble("lon")),maxOf(map.cameraPosition.zoom,16.0)))
+ }
+ LaunchedEffect(nativeMap,planning,planningTopInset,planningBottomInset,pendingPoint,size) {
+  if(!planning||size.width<=0||size.height<=0)return@LaunchedEffect
+  val map=nativeMap?:return@LaunchedEffect
+  val rawTop=with(density){planningTopInset.toPx()}.toDouble()
+  val rawBottom=with(density){planningBottomInset.toPx()}.toDouble()
+  val available=(size.height-96).coerceAtLeast(1).toDouble()
+  val scale=if(rawTop+rawBottom>available)available/(rawTop+rawBottom) else 1.0
+  val side=with(density){20.dp.toPx()}.toDouble()
+  map.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.Builder(map.cameraPosition).padding(side,rawTop*scale,side,rawBottom*scale).build()))
+  map.uiSettings.setCompassMargins(0,with(density){(planningTopInset+8.dp).roundToPx()},with(density){14.dp.roundToPx()},0)
+  map.uiSettings.setAttributionMargins(with(density){8.dp.roundToPx()},0,0,with(density){(planningBottomInset+4.dp).roundToPx()})
+  if(pendingPoint!=null) {
+   val locations=(listOf(pendingPoint)+listOfNotNull(origin?.let {GeoPoint(it.lat,it.lon)})).map {LatLng(it.lat,it.lon)}.distinct()
+   if(locations.size>1)map.moveCamera(CameraUpdateFactory.newLatLngBounds(LatLngBounds.Builder().includes(locations).build(),with(density){24.dp.roundToPx()}))
+   else map.moveCamera(CameraUpdateFactory.newLatLngZoom(locations.first(),maxOf(15.0,map.cameraPosition.zoom)))
+   if(map.cameraPosition.zoom>17)map.moveCamera(CameraUpdateFactory.zoomTo(17.0))
+  }
+ }
+ val navigationTarget=if(navigation?.mode==NavigationCameraMode.FOLLOW)avatarPosition else null
+ LaunchedEffect(nativeMap,navigation?.mode,navigation?.command,navigationTarget,navigation?.topInset,navigation?.bottomInset,navigation?.sideInset,size,points) {
+  val map=nativeMap?:return@LaunchedEffect;val viewport=navigation?:return@LaunchedEffect
+  if(size.width<=0||size.height<=0)return@LaunchedEffect
+  val left=with(density){(viewport.sideInset+16.dp).toPx()}.toDouble().coerceAtMost(size.width*.65)
+  val top=with(density){viewport.topInset.toPx()}.toDouble()
+  val bottom=with(density){(viewport.bottomInset+28.dp).toPx()}.toDouble()
+  // Preserve a usable viewport under large text or compact windows.
+  val scale=if(top+bottom>size.height-80)(size.height-80).coerceAtLeast(1)/(top+bottom)else 1.0
+  map.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.Builder(map.cameraPosition).padding(left,top*scale,with(density){16.dp.toPx()}.toDouble(),bottom*scale).build()))
+  map.uiSettings.setCompassMargins(0,(top+with(density){8.dp.toPx()}).toInt(),with(density){16.dp.roundToPx()},0)
+  map.uiSettings.setAttributionMargins(with(density){8.dp.roundToPx()},0,0,(bottom-with(density){20.dp.toPx()}).toInt().coerceAtLeast(0))
+  when(viewport.mode) {
+   NavigationCameraMode.FOLLOW->if(navigationTarget!=null) {
+    val camera=CameraPosition.Builder(map.cameraPosition).target(LatLng(navigationTarget.lat,navigationTarget.lon)).zoom(if(markerMode in listOf("car","pt"))16.0 else 17.0).build()
+    map.easeCamera(CameraUpdateFactory.newCameraPosition(camera),500)
+   }else {
+    val locations=points.map {LatLng(it.lat,it.lon)}.distinct()
+    if(locations.size>1)map.moveCamera(CameraUpdateFactory.newLatLngBounds(LatLngBounds.Builder().includes(locations).build(),with(density){24.dp.roundToPx()}))
+    else if(locations.size==1)map.moveCamera(CameraUpdateFactory.newLatLngZoom(locations.first(),16.0))
+   }
+   NavigationCameraMode.OVERVIEW->{
+    val locations=points.map {LatLng(it.lat,it.lon)}.distinct()
+    if(locations.size>1)map.easeCamera(CameraUpdateFactory.newLatLngBounds(LatLngBounds.Builder().includes(locations).build(),with(density){24.dp.roundToPx()}),500)
+    else if(locations.size==1)map.easeCamera(CameraUpdateFactory.newLatLngZoom(locations.first(),16.0),500)
+   }
+   NavigationCameraMode.FREE->Unit
+  }
  }
  val projection=remember(nativeMap,cameraRevision){nativeMap?.projection}
  fun screen(point:GeoPoint):Offset {val p=projection?.toScreenLocation(LatLng(point.lat,point.lon));return if(p==null)Offset(-10000f,-10000f)else Offset(p.x,p.y)}
@@ -207,7 +259,7 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
  val parking=selectedCard?.route?.optJSONObject("summary")?.optJSONObject("parking_assumption")
  val parkingIds=listOfNotNull(parking?.optJSONObject("origin")?.optString("id"),parking?.optJSONObject("destination")?.optString("id"))+activeStops.map {it.id}+originStops.map {it.id}
  val poiClusters=remember(projectedPois,parkingIds,cameraRevision,density){clusterMobility(projectedPois,parkingIds,if((nativeMap?.cameraPosition?.zoom?:0.0)>=17.5)0f else with(density){48.dp.toPx()})}
- val poiPaint=remember {android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {typeface=android.graphics.Typeface.create("sans-serif",android.graphics.Typeface.BOLD);textAlign=android.graphics.Paint.Align.CENTER}}
+ val poiPaint=remember(context) {android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {typeface=androidx.core.content.res.ResourcesCompat.getFont(context,R.font.barlow_semibold);textAlign=android.graphics.Paint.Align.CENTER}}
  val poiLabels=remember(poiClusters,parkingIds,cameraRevision,size,density){
   val occupied=mutableListOf<android.graphics.RectF>()
   poiClusters.sortedByDescending {it.members.first().id in parkingIds}.mapNotNull {cluster->
@@ -237,7 +289,7 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
  }
  fun inspectCluster(cluster:PoiCluster) {
    if(cluster.members.size==1)inspectedPoi=cluster.members.first()
-   else {follow=false;val lat=cluster.members.map {it.point.lat}.average();val lon=cluster.members.map {it.point.lon}.average();nativeMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat,lon),minOf(19.0,maxOf(17.5,(nativeMap?.cameraPosition?.zoom?:14.0)+1.5))))}
+   else {follow=false;navigation?.pan();val lat=cluster.members.map {it.point.lat}.average();val lon=cluster.members.map {it.point.lon}.average();nativeMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat,lon),minOf(19.0,maxOf(17.5,(nativeMap?.cameraPosition?.zoom?:14.0)+1.5))))}
  }
  fun selectRoute(point:LatLng):Boolean {
   val tap=screen(GeoPoint(point.latitude,point.longitude))
@@ -253,28 +305,29 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
  }
  Column(Modifier.fillMaxSize().padding(if(compact)0.dp else 12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   Box(Modifier.weight(1f).fillMaxWidth().clipToBounds().onSizeChanged {size=it}) {
-   VectorMapSurface(mapStyle,retry,onReady={nativeMap=it;if(planning)it.uiSettings.setCompassMargins(0,with(density){178.dp.roundToPx()},with(density){10.dp.roundToPx()},0)},onCameraChanged={cameraRevision++},onGesture={follow=false},onTap={point->if(planning){follow=false;onMapPick?.invoke(GeoPoint(point.latitude,point.longitude));true}else selectRoute(point)},onLoading={mapLoading=it},onFailure={mapFailure=it},modifier=Modifier.fillMaxSize())
+   VectorMapSurface(mapStyle,retry,onReady={nativeMap=it;if(planning)it.uiSettings.setCompassMargins(0,with(density){(planningTopInset+8.dp).roundToPx()},with(density){14.dp.roundToPx()},0)},onCameraChanged={cameraRevision++},onGesture={follow=false;navigation?.pan()},onTap={point->if(planning){follow=false;onMapPick?.invoke(GeoPoint(point.latitude,point.longitude));true}else selectRoute(point)},onLoading={mapLoading=it},onFailure={mapFailure=it},modifier=Modifier.fillMaxSize())
+   if(planning&&mapStyle!=JourneyMapStyle.Night)Box(Modifier.matchParentSize().background(Color.White.copy(alpha=.10f)))
    Canvas(Modifier.fillMaxSize()) {
     projectedRoutes.forEach {segment->
      val chosen=segment.route.id==selected
-     val color=mapSegmentColor(MapSegment(emptyList(),segment.mode,false,transitVehicle=segment.vehicle))
+     val color=if(navigation!=null)NavigationPrimary else mapSegmentColor(MapSegment(emptyList(),segment.mode,false,transitVehicle=segment.vehicle))
      val effect=if(segment.dashed)PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(),6.dp.toPx()),0f)else null
      fun stroke(width:Float,pathEffect:PathEffect?=effect)=Stroke(width.dp.toPx(),cap=StrokeCap.Round,join=StrokeJoin.Round,pathEffect=pathEffect)
      if(chosen) {
       drawPath(segment.path,color.copy(alpha=.10f),style=stroke(15f))
       drawPath(segment.path,color.copy(alpha=.24f),style=stroke(9f))
-      drawPath(segment.path,Ink.copy(alpha=.65f),style=stroke(5.5f))
+      drawPath(segment.path,if(navigation!=null)Color.White else Color.Black.copy(alpha=.55f),style=stroke(5.5f))
       drawPath(segment.path,color,style=stroke(4f))
       if(!routeMotion)drawPath(segment.path,Color.White.copy(alpha=.60f),style=stroke(1.5f))
      }else {
       // Fade casing too: an opaque dark outline would still clutter the map.
-      drawPath(segment.path,Ink.copy(alpha=.10f),style=stroke(3.5f))
+      drawPath(segment.path,Color.Black.copy(alpha=.10f),style=stroke(3.5f))
       drawPath(segment.path,color.copy(alpha=if(selected!=null).19f else .40f),style=stroke(2f))
      }
     }
     projectedFixes.forEach {path->
      drawPath(path,Color.White,style=Stroke(5.dp.toPx(),cap=StrokeCap.Round,join=StrokeJoin.Round))
-     drawPath(path,Color(0xFF188AE8),style=Stroke(3.dp.toPx(),cap=StrokeCap.Round,join=StrokeJoin.Round))
+     drawPath(path,CompanionPalette.Burgundy,style=Stroke(3.dp.toPx(),cap=StrokeCap.Round,join=StrokeJoin.Round))
     }
    }
    if(routeMotion)Canvas(Modifier.fillMaxSize()) {
@@ -292,7 +345,7 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
      val transfer=poi.tags.optString("route_role")=="transfer"
      val opacity=if(intermediate).42f else 1f
      val r=(if(chosen)10 else 7).dp.toPx()
-     val color=if(poi.kind=="stop")Color(0xFF248056)else if(cluster.members.any {it.selectable})Color(0xFF276CC0)else Color(0xFF78727D)
+     val color=if(poi.kind=="stop")CompanionPalette.Primary else if(cluster.members.any {it.selectable})CompanionPalette.Burgundy else CompanionPalette.Text
      if(poi.kind=="stop"){drawCircle((if(chosen&&!intermediate)Gold else Color.White).copy(alpha=opacity),r+2.dp.toPx(),p);drawCircle(color.copy(alpha=opacity),r,p)}
      else {drawRoundRect(if(chosen)Gold else Color.White,Offset(p.x-r-1.dp.toPx(),p.y-r-1.dp.toPx()),androidx.compose.ui.geometry.Size(2*r+2.dp.toPx(),2*r+2.dp.toPx()),androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()));drawRoundRect(color,Offset(p.x-r,p.y-r),androidx.compose.ui.geometry.Size(2*r,2*r),androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()))}
      if(transfer){
@@ -312,12 +365,12 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
      poiPaint.style=android.graphics.Paint.Style.FILL;poiPaint.color=android.graphics.Color.rgb(40,35,45);canvas.nativeCanvas.drawText(text,x,y,poiPaint)
     }}
     listOfNotNull(origin,destination).forEach {place->val p=screen(GeoPoint(place.lat,place.lon));drawCircle(Color.White,6.dp.toPx(),p);drawCircle(Ink,3.dp.toPx(),p)}
-    position?.let {fix->val point=GeoPoint(fix.getDouble("lat"),fix.getDouble("lon"));val p=screen(point);val metres=fix.number("accuracy_m")?:0.0;val edge=screen(GeoPoint(point.lat,point.lon+metres/(111320*cos(point.lat*PI/180).coerceAtLeast(.01))));val radius=(edge-p).getDistance();drawCircle(Color(0xFF188AE8).copy(alpha=.15f),maxOf(radius,10f),p);drawCircle(Color.White,15f,p);drawCircle(Color(0xFF188AE8),11f,p)}
+    position?.let {fix->val point=GeoPoint(fix.getDouble("lat"),fix.getDouble("lon"));val p=screen(point);val metres=fix.number("accuracy_m")?:0.0;val edge=screen(GeoPoint(point.lat,point.lon+metres/(111320*cos(point.lat*PI/180).coerceAtLeast(.01))));val radius=(edge-p).getDistance();val dot=CompanionPalette.Blue;drawCircle(dot.copy(alpha=.2f),maxOf(radius,10f),p);drawCircle(Color.White,if(navigation!=null)11.dp.toPx()else 15f,p);drawCircle(dot,if(navigation!=null)8.dp.toPx()else 11f,p)}
    }
    poiClusters.forEach {cluster->
     val half=with(density){14.dp.toPx()}
     val poi=cluster.members.first()
-    Box(Modifier.offset {IntOffset((cluster.position.x-half).roundToInt(),(cluster.position.y-half).roundToInt())}.size(28.dp).clickable {if(planning&&cluster.members.size==1&&poi.kind!="stop")onMapPick?.invoke(poi.point)else inspectCluster(cluster)}.semantics {
+    Box(Modifier.offset {IntOffset((cluster.position.x-half).roundToInt(),(cluster.position.y-half).roundToInt())}.size(28.dp).clickable {if(planning&&cluster.members.size==1&&poi.kind!="stop"){follow=false;onMapPick?.invoke(poi.point)}else inspectCluster(cluster)}.semantics {
      contentDescription=if(cluster.members.size>1)(if(poi.kind=="parking")"P"else"H")+" · ${cluster.members.size} · "+model.text("Zoom to explore","Zum Erkunden vergrößern")else (if(poi.kind=="parking")"P"else"H")+" · "+poi.name.ifBlank {poi.tags.optString("ref",model.text("Mapped place","Kartierter Ort"))}
     },contentAlignment=Alignment.Center) {if(poi.tags.optString("route_role")=="final")ContextSprite("finish",false,Modifier.size(24.dp))}
    }
@@ -332,8 +385,17 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
      Surface(Modifier.align(Alignment.TopStart),color=Ink,shape=MaterialTheme.shapes.small) {Text(label,color=if(label=="A")Mint else Gold,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(horizontal=3.dp,vertical=1.dp))}
     }
    }
-   pendingPoint?.let {p->val point=screen(p);Box(Modifier.offset {IntOffset((point.x-12.dp.toPx()).roundToInt(),(point.y-30.dp.toPx()).roundToInt())}.size(24.dp,30.dp)){PixelIcon("location",Modifier.fillMaxSize())}}
-   if(planning)position?.let {fix->val point=screen(GeoPoint(fix.getDouble("lat"),fix.getDouble("lon")));Box(Modifier.offset {IntOffset((point.x-24.dp.toPx()).roundToInt(),(point.y-48.dp.toPx()).roundToInt())}.size(48.dp).semantics {contentDescription=model.text("Your location avatar","Dein Standort-Avatar")}){CompanionSprite(appearance,Modifier.fillMaxSize(),animated=spriteAnimated)}}
+   pendingPoint?.let {p->val point=screen(p)
+    if(planning)Box(Modifier.offset {IntOffset((point.x-18.dp.toPx()).roundToInt(),(point.y-42.dp.toPx()).roundToInt())}.size(36.dp,42.dp)) {
+     Canvas(Modifier.fillMaxSize()) {
+      val w=this.size.width;val h=this.size.height
+      val pin=Path().apply {moveTo(w*.5f,h);cubicTo(w*.1f,h*.6f,0f,h*.45f,0f,h*.4f);cubicTo(0f,-h*.12f,w,-h*.12f,w,h*.4f);cubicTo(w,h*.6f,w*.65f,h*.85f,w*.5f,h);close()}
+      drawPath(pin,Color.White,style=Stroke(5.dp.toPx()));drawPath(pin,if(pendingOrigin)Mint else CompanionPalette.Burgundy)
+     }
+     Text(if(pendingOrigin)"A"else"B",Modifier.align(Alignment.TopCenter).padding(top=6.dp),color=Color.White,style=MaterialTheme.typography.titleSmall)
+    } else Box(Modifier.offset {IntOffset((point.x-12.dp.toPx()).roundToInt(),(point.y-30.dp.toPx()).roundToInt())}.size(24.dp,30.dp)){PixelIcon("location",Modifier.fillMaxSize())}
+   }
+
    if(tracking||playbackFraction!=null)avatarPosition?.let {p->
     val point=screen(p)
     val width=with(LocalDensity.current){52.dp.toPx()};val height=with(LocalDensity.current){52.dp.toPx()}
@@ -342,32 +404,48 @@ private data class ProjectedRoutePath(val route:MapRoute,val path:Path,val offse
      CompanionSprite(appearance,Modifier.size(48.dp),animated=spriteAnimated,transport=if(playbackFraction!=null)originAvatarMode else movingMode)
     }
    }
-   if(position!=null&&!locationBlocked&&playbackFraction==null&&nativeMap!=null) {
+   if(navigation==null&&position!=null&&!locationBlocked&&playbackFraction==null&&nativeMap!=null) {
     DeviceDirectionOverlay(position,screen(GeoPoint(position.getDouble("lat"),position.getDouble("lon"))),nativeMap!!.cameraPosition.bearing,model.de)
    }
-   Surface(Modifier.align(Alignment.BottomStart).padding(10.dp),color=Panel,shape=MaterialTheme.shapes.large,shadowElevation=4.dp) {
+   if(navigation==null&&planning)Column(Modifier.align(Alignment.BottomEnd).padding(end=14.dp,bottom=planningBottomInset+20.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+    Surface(color=Panel,shape=RoundedCornerShape(16.dp),shadowElevation=3.dp,border=androidx.compose.foundation.BorderStroke(1.dp,Edge)) {
+     IconButton({styleSheet=true},Modifier.size(48.dp).semantics {contentDescription=model.text("Map layers","Kartenebenen")}){MapLayersIcon(Modifier.size(22.dp))}
+    }
+    FilledIconButton({follow=true;locationActions.request()},Modifier.size(48.dp).semantics {
+     contentDescription=if(!hasLocationAccess(context))model.text("My location · Allow location access","Mein Standort · Standortzugriff erlauben")else if(locationBlocked)model.text("My location · Enable location","Mein Standort · Standort aktivieren")else model.text("Recenter on my location","Auf meinen Standort zentrieren")
+    },shape=RoundedCornerShape(16.dp)) {
+     if((locationBusy||planningLocating)&&!locationBlocked)CircularProgressIndicator(Modifier.size(22.dp),color=Color.White,strokeWidth=2.dp)
+     else PlanningLocationIcon(locationBlocked)
+    }
+   }
+   if(navigation==null&&!planning)Surface(Modifier.align(Alignment.BottomStart).padding(10.dp),color=Panel,shape=MaterialTheme.shapes.large,shadowElevation=4.dp) {
     Column {
      IconButton({styleSheet=true},Modifier.size(44.dp).semantics {contentDescription=model.text("Map views","Kartenansichten")+" · "+mapStyle.title(model)}) {MapLayersIcon(Modifier.size(22.dp))}
      IconButton({poiSettingsSheet=true},Modifier.size(44.dp).semantics {contentDescription=model.text("Map settings · Places and radius","Karteneinstellungen · Orte und Radius")}) {PixelIcon("settings",Modifier.size(22.dp))}
      IconButton(onClick={follow=true;locationActions.request()},modifier=Modifier.size(44.dp).semantics {contentDescription=if(!hasLocationAccess(context))model.text("My position · Allow location access","Mein Standort · Standortzugriff erlauben")else if(locationBlocked)model.text("My position · Enable location","Mein Standort · Standort aktivieren")else model.text("My position · Center map","Mein Standort · Karte zentrieren")}) {
       if((locationBusy||planningLocating)&&!locationBlocked)CircularProgressIndicator(Modifier.size(22.dp),strokeWidth=2.dp)else Box(Modifier.size(24.dp)) {
        PixelIcon("location",Modifier.fillMaxSize())
-       if(locationBlocked)Canvas(Modifier.fillMaxSize()){val a=Offset(size.width*.15f,size.height*.85f);val b=Offset(size.width*.85f,size.height*.15f);drawLine(Ink,a,b,5.dp.toPx(),StrokeCap.Round);drawLine(Color(0xFFFF5252),a,b,3.dp.toPx(),StrokeCap.Round)}
+       if(locationBlocked)Canvas(Modifier.fillMaxSize()){val a=Offset(size.width*.15f,size.height*.85f);val b=Offset(size.width*.85f,size.height*.15f);drawLine(Ink,a,b,5.dp.toPx(),StrokeCap.Round);drawLine(CompanionPalette.Burgundy,a,b,3.dp.toPx(),StrokeCap.Round)}
       }
      }
     }
    }
-   if(mapStyle==JourneyMapStyle.Mobility)MobilityMapLegend(model,Modifier.align(Alignment.TopStart).padding(start=10.dp,top=if(planning)174.dp else 10.dp))
-   if(focus?.segments?.any {!it.drawable}==true)Surface(Modifier.align(Alignment.TopCenter).padding(top=66.dp),color=Panel,shape=MaterialTheme.shapes.small) {
+   if(navigation==null&&mapStyle==JourneyMapStyle.Mobility)MobilityMapLegend(model,Modifier.align(Alignment.TopStart).padding(start=10.dp,top=if(planning)planningTopInset+8.dp else 10.dp))
+   if(focus?.segments?.any {!it.drawable}==true)Surface(Modifier.align(Alignment.TopCenter).padding(top=navigation?.topInset?.plus(8.dp)?:66.dp),color=if(navigation!=null)Color.White else Panel,shape=MaterialTheme.shapes.small) {
     Text(model.text("Tram path unavailable","Tramverlauf nicht verfügbar"),color=Gold,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(8.dp))
    }
-   Surface(Modifier.align(Alignment.BottomEnd).padding(end=4.dp,bottom=2.dp),color=Panel.copy(alpha=.9f)){
-    Text("© OpenStreetMap · OpenMapTiles",color=Pale,fontFamily=AppFont,fontSize=10.sp,lineHeight=12.sp,modifier=Modifier.padding(horizontal=4.dp,vertical=2.dp))
+   Surface(Modifier.align(Alignment.BottomEnd).padding(end=if(navigation!=null)16.dp else 4.dp,bottom=if(planning)planningBottomInset+4.dp else navigation?.bottomInset?.plus(4.dp)?:2.dp),color=if(navigation!=null)Color.White.copy(alpha=.95f)else Panel.copy(alpha=.9f)){
+    Text("© OpenStreetMap · OpenMapTiles",color=if(navigation!=null)Color.Black else Pale,fontFamily=AppFont,fontSize=10.sp,lineHeight=12.sp,modifier=Modifier.padding(horizontal=4.dp,vertical=2.dp))
    }
-   if(mapFailure)Surface(Modifier.align(Alignment.Center).padding(20.dp),color=Panel,shape=MaterialTheme.shapes.large){Column(Modifier.padding(14.dp)){Text(model.text("I couldn't load the map. Check your internet connection.","Ich konnte die Karte nicht laden. Prüfe deine Internetverbindung."));TextButton({retry++}){Text(model.text("Retry","Erneut versuchen"))}}}
-   else if(mapLoading)Surface(Modifier.align(Alignment.TopCenter).padding(top=if(planning)174.dp else 66.dp),color=Panel,shape=MaterialTheme.shapes.medium){Row(Modifier.padding(8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){CircularProgressIndicator(Modifier.size(16.dp),strokeWidth=2.dp);Text(model.text("Loading map…","Karte laden…"),style=MaterialTheme.typography.labelSmall)}}
+   if(mapFailure)Surface(Modifier.align(Alignment.Center).padding(20.dp),color=if(navigation!=null)Color.White else Panel,shape=MaterialTheme.shapes.large){Column(Modifier.padding(14.dp)){Text(model.text("I couldn't load the map. Check your internet connection.","Ich konnte die Karte nicht laden. Prüfe deine Internetverbindung."));TextButton({retry++}){Text(model.text("Retry","Erneut versuchen"))}}}
+   else if(mapLoading)Surface(Modifier.align(Alignment.TopCenter).padding(top=if(planning)planningTopInset+8.dp else navigation?.topInset?.plus(8.dp)?:66.dp),color=if(navigation!=null)Color.White else Panel,shape=MaterialTheme.shapes.medium){Row(Modifier.padding(8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){CircularProgressIndicator(Modifier.size(16.dp),strokeWidth=2.dp);Text(model.text("Loading map…","Karte laden…"),style=MaterialTheme.typography.labelSmall)}}
   }
-  if(styleSheet)MapStyleSheet(model,mapStyle,onSelect={mapStyle=it;model.store.put("companion.map-style.v1",it.key);styleSheet=false},onDismiss={styleSheet=false})
+  if(styleSheet&&planning)PlanningMapLayersSheet(model,mapStyle,poiPreferences,onApply={style,points->
+   val settings=model.settings().copyJson();val prior=settings.optJSONObject("mapPoints")?.copyJson()?:JSONObject()
+   val changes=points.json();changes.keys().forEach {key->prior.put(key,changes.get(key))};settings.put("mapPoints",prior)
+   model.saveSettings(settings);mapStyle=style;model.store.put("companion.map-style.v1",style.key);styleSheet=false
+  },onDismiss={styleSheet=false})
+  else if(styleSheet)MapStyleSheet(model,mapStyle,onSelect={mapStyle=it;model.store.put("companion.map-style.v1",it.key);styleSheet=false},onDismiss={styleSheet=false})
   if(poiSettingsSheet)MapPlacesSettings(model,poiPreferences,parkingForTransit=ptMap){poiSettingsSheet=false}
   inspectedPoi?.let {poi->MobilityPlaceSheet(model,poi,origin,destination,!planning&&!tracking&&!selectedOnly&&!model.busy&&!poi.tags.optBoolean("display_only")){inspectedPoi=null}}
   locationError?.let {message->AlertDialog(onDismissRequest={locationError=null},title={Text(model.text("My position","Mein Standort"))},text={Text(message)},confirmButton={TextButton({locationError=null}){Text(model.text("Close","Schließen"))}})}

@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
 @Composable private fun PriorityArrow(direction:Int,modifier:Modifier) {
- val tone=if(direction>0)Mint else if(direction<0)Color(0xFFC5B8FF)else MutedText
+ val tone=if(direction>0)Mint else if(direction<0)CompanionPalette.Burgundy else MutedText
  Canvas(modifier) {
   val x=size.width*.5f;val y=size.height*.5f;val stroke=1.8.dp.toPx()
   if(direction==0){
@@ -74,8 +74,6 @@ import org.json.JSONObject
 @Composable internal fun ModelEvaluationStrip(model:CompanionModel,assessment:Recommendation,current:RouteCard?,time:Long,preview:Boolean) {
  val favourite=visibleFavourite(assessment,time)
  val basis=favourite?:current
- val summary=basis?.candidate?.optJSONObject("hotco")?:basis?.basicSimulation
- val coherence=remember(summary){networkCoherence(summary)}
  val score=signedModeEvaluation(favourite)
  val favouriteName=favourite?.let {modeName(it.mode,model.de)}
  var details by remember {mutableStateOf(false)}
@@ -94,13 +92,6 @@ import org.json.JSONObject
     Column {
      Text(label,style=MaterialTheme.typography.labelMedium,color=if(favourite!=null)Gold else MutedText)
      if(favourite!=null)Text(modeName(favourite.mode,model.de)+(score?.let {" · "+String.format(java.util.Locale.US,"%+.2f",it)}?:""),style=MaterialTheme.typography.titleSmall,color=Gold)
-    }
-   }
-   Row(Modifier.heightIn(min=48.dp).clickable(role=Role.Button){details=true}.semantics {contentDescription=model.text("Global network coherence","Globale Netzwerkkohärenz")+": "+(coherence?.toString()?:model.text("Unavailable","Nicht verfügbar"))},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)) {
-    NetworkGlyph(Modifier.size(24.dp))
-    Column {
-     Text(model.text("Global coherence","Globale Kohärenz"),style=MaterialTheme.typography.labelSmall,color=MutedText)
-     Text(coherence?.let {String.format(java.util.Locale.US,"%+.2f",it)}?:"—",style=MaterialTheme.typography.titleSmall,color=Mint)
     }
    }
   }

@@ -13,7 +13,7 @@ internal fun DrawScope.drawValenceEnvironment(mode:String,time:Float) {
  repeat(3) {i->
   val x=w*((i*.37f+time*.009f)%1.22f-.11f)
   val y=h*(.105f+(i%2)*.075f)
-  val cloud=Color(0xFFFFF5DE).copy(alpha=.32f)
+  val cloud=CompanionPalette.Surface.copy(alpha=.32f)
   drawOval(cloud,Offset(x,y),Size(w*.105f,h*.023f))
   drawOval(cloud,Offset(x+w*.028f,y-h*.015f),Size(w*.042f,h*.04f))
  }
@@ -21,7 +21,7 @@ internal fun DrawScope.drawValenceEnvironment(mode:String,time:Float) {
   val x=w*((time*.024f+i*.15f)%1.3f-.15f)
   val y=h*(.2f+i*.045f)+sin(time*.7f+i)*h*.015f
   val wing=(.004f+.007f*abs(sin(time*3f+i)))*h
-  val bird=Color(0xFF394654).copy(alpha=.65f)
+  val bird=CompanionPalette.Text.copy(alpha=.65f)
   drawLine(bird,Offset(x-w*.009f,y-wing),Offset(x,y),.8.dp.toPx(),StrokeCap.Round)
   drawLine(bird,Offset(x,y),Offset(x+w*.009f,y-wing),.8.dp.toPx(),StrokeCap.Round)
  }
@@ -33,18 +33,18 @@ internal fun DrawScope.drawValenceEnvironment(mode:String,time:Float) {
     moveTo(x,y)
     cubicTo(x+w*.012f,y+sin(time*1.5f+i)*h*.003f,x+w*.025f,y-h*.004f,x+w*.04f,y)
    }
-   drawPath(wave,Color(0xFFFFE7AB).copy(alpha=.22f+.15f*sin(time*.8f+i)),style=Stroke(1.dp.toPx()))
+   drawPath(wave,CompanionPalette.Blue.copy(alpha=.22f+.15f*sin(time*.8f+i)),style=Stroke(1.dp.toPx()))
   }
   "pt"->repeat(7) {i->
    val x=w*(.19f+i*.085f);val y=h*(.34f+(i%2)*.105f)
    val alpha=(.12f+.18f*sin(time*.7f+i)).coerceAtLeast(0f)
    val glint=Path().apply {moveTo(x,y);lineTo(x+w*.018f,y);lineTo(x-w*.004f,y+h*.065f);lineTo(x-w*.022f,y+h*.065f);close()}
-   drawPath(glint,Color(0xFFFFEAB8).copy(alpha=alpha))
+   drawPath(glint,CompanionPalette.Lavender.copy(alpha=alpha))
   }
   "car"->repeat(4) {i->
    val x=w*(.53f+i*.029f);val y=h*.60f
    val flag=Path().apply {moveTo(x,y);lineTo(x+w*.012f,y+sin(time*1.4f+i)*h*.006f);lineTo(x+w*.009f,y+h*.022f);lineTo(x,y+h*.019f);close()}
-   drawPath(flag,Color(0xFFF2B45B).copy(alpha=.6f))
+   drawPath(flag,CompanionPalette.Burgundy.copy(alpha=.6f))
   }
  }
  // Leaves drift near the park trees and the library's street trees.

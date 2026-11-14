@@ -32,7 +32,7 @@ import kotlin.math.*
   val factor=minOf(size.width,size.height)/64f
   translate((size.width-64*factor)/2,(size.height-64*factor)/2) {
    scale(factor,pivot=Offset.Zero) {
-    val tone=when {rating==null->MutedText;rating<0->Color(0xFFC8A8E4);rating>0->Mint;else->Gold}
+    val tone=when {rating==null->MutedText;rating<0->CompanionPalette.Burgundy;rating>0->Mint;else->MutedText}
     val wave=if(animated&&rating!=null)sin(expressionSeconds*(if(emotion>0)1.8f else 1.1f))else 0f
     val tilt=if(rating==null)0f else wave*(if(emotion<0)1.1f else .8f)*abs(emotion)/3
     rotate(tilt,pivot=Offset(32f,28f)) {
