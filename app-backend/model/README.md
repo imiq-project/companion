@@ -2,7 +2,7 @@
   <img src="../../frontend/app/src/main/assets/branding/imiq-ovgu-logo.png" alt="IMIQ — Otto von Guericke University Magdeburg" width="421">
 </p>
 
-# Companion model
+# HOTCO model
 
 **From explicit declarations to a reproducible signed evaluation of travel modes.**
 
