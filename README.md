@@ -4,7 +4,7 @@
 
 # Companion
 
-> **Model documentation:** [Explore the five-goal, thirteen-state model](app-backend/model/README.md) — equations, inputs, numerical integration and reproducible synthetic figures.
+> **Model documentation:** [HOTCO MODEL](app-backend/model/README.md) — equations, inputs, numerical integration and reproducible synthetic figures.
 
 **Understand your travel options. Choose a journey. Reflect on the experience.**
 
